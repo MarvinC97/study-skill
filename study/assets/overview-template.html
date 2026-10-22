@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<!-- TEMPLATE CONTRACT (Study V3.0)
+Default learner language is zh-CN; change html lang and UI labels when requested.
+Retain source English terms, identifiers, API names and quoted source text accurately.
+Replace every placeholder before delivery. Escape text/attribute values; validate
+navigation URLs. HTML slots accept only trusted authored markup, never raw source
+HTML, scripts or event attributes. Keep source quotations as text, not executable code.
+Use textContent for runtime source strings. No remote dependencies or network calls.
+Test the generated artifact, not only this template, on mobile and without JavaScript.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{SCOPE_TITLE}} · Study Overview</title>
+<style>
+:root{--bg:#f6f7f4;--ink:#17201f;--muted:#64716e;--card:#fff;--line:#d9dfdb;--accent:#2d6680;--warm:#d78538;--soft:#eef3f0}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}main{max-width:1050px;margin:auto;padding:30px 22px 60px}.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--warm);font-weight:800}h1{font-size:clamp(36px,6vw,62px);line-height:1.02;letter-spacing:-.045em;margin:10px 0}.lede{font-size:20px;color:var(--muted);max-width:780px}.panel{margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px}h2{margin:0 0 14px;font-size:27px}.map{padding:22px;background:var(--soft);border-radius:18px;font-weight:750;text-align:center}.units{display:grid;gap:12px}.unit{display:grid;grid-template-columns:76px 1fr;gap:16px;padding:17px;border:1px solid var(--line);border-radius:16px}.num{color:var(--accent);font-weight:900}.unit b{font-size:18px}.unit p{margin:4px 0 0;color:var(--muted)}.foot{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-top:25px;padding:20px;border-radius:18px;background:#fff8ee;border:1px solid #ead2b8}.cmd{font:800 18px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--accent)}@media(max-width:700px){.unit{grid-template-columns:1fr}.foot{align-items:flex-start;flex-direction:column}}
+
+/* Shared resilience: narrow screens, keyboard use and reduced motion. */
+main,section,article,.card,.panel{min-width:0}body{overflow-wrap:anywhere}
+img,svg,video{max-width:100%;height:auto}pre{max-width:100%;overflow:auto}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #287ea5;outline-offset:4px}
+button,input,select,summary{font:inherit}button,select,summary{min-height:44px}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body><main>
+<p class="eyebrow">Study · Overview · 0 / {{UNIT_TOTAL}} Units</p>
+<h1>{{SCOPE_TITLE}}</h1>
+<p class="lede">{{OVERVIEW_LEDE}}</p>
+<section class="panel"><h2>学完你会掌握什么</h2>{{OUTCOMES_HTML}}</section>
+<section class="panel"><h2>先看整张图</h2><div class="map">{{BIG_PICTURE_HTML}}</div></section>
+<section class="panel"><h2>学习路线</h2><div class="units">{{UNIT_CARDS_HTML}}</div></section>
+<section class="foot"><div><b>路线已按完整学习点清单拆分</b><div style="color:var(--muted)">按信息密度、概念依赖与认知负担分 Unit。</div></div><div><span>开始 Unit 1：</span> <span class="cmd">/study-n</span></div></section>
+</main></body></html>

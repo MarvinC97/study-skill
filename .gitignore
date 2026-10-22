@@ -1,0 +1,22 @@
+# Local learner/course records (private runtime data)
+Study/
+learners/
+learner-profile.json
+study-state.json
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Python caches / virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Operating system and temporary files
+.DS_Store
+Thumbs.db
+*.tmp

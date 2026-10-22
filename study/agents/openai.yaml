@@ -1,0 +1,12 @@
+interface:
+  display_name: "好好学习 · Study V3.5"
+  short_description: "将书籍、项目与视频拆分为知识点，按学习者档案自适应教学。"
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

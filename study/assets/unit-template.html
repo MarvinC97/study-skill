@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<!-- TEMPLATE CONTRACT (Study V3.1)
+Default learner language is zh-CN; change html lang and UI labels when requested.
+Retain source English terms, identifiers, API names and quoted source text accurately.
+Replace every placeholder before delivery. Escape text/attribute values; validate
+navigation URLs. HTML slots accept only trusted authored markup, never raw source
+HTML, scripts or event attributes. Keep source quotations as text, not executable code.
+Use textContent for runtime source strings. No remote dependencies or network calls.
+Test the generated artifact, not only this template, on mobile and without JavaScript.
+-->
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>{{UNIT_TITLE}}</title>
+<style>
+  :root { color-scheme: light dark; --pad: clamp(18px,3vw,34px); }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height:1.5; }
+  main { max-width: 980px; margin:auto; padding:24px; }
+  .top { display:flex; gap:16px; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px; }
+  .eyebrow { opacity:.65; font-size:.9rem; }
+  h1 { margin:.15em 0; font-size:clamp(2rem,5vw,4rem); line-height:1.02; }
+  .progress { min-width:180px; }
+  .bar { height:8px; border-radius:99px; background:color-mix(in srgb, currentColor 14%, transparent); overflow:hidden; }
+  .bar > i { display:block; width:{{PROGRESS_PERCENT}}%; height:100%; background:currentColor; }
+  .grid { display:grid; grid-template-columns:repeat(12,1fr); gap:16px; }
+  .card { grid-column:span 12; border:1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius:22px; padding:var(--pad); background:color-mix(in srgb, Canvas 96%, currentColor 4%); }
+  .half { grid-column:span 6; }
+  .third { grid-column:span 4; }
+  .label { text-transform:uppercase; letter-spacing:.12em; font-size:.76rem; opacity:.58; margin-bottom:12px; }
+  .big { font-size:clamp(1.35rem,2.7vw,2.15rem); line-height:1.25; max-width:24ch; }
+  .flow { display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; padding:18px 0 4px; }
+  .node { border:1px solid color-mix(in srgb, currentColor 24%, transparent); border-radius:16px; padding:12px 16px; font-weight:650; text-align:center; }
+  .arrow { opacity:.5; font-size:1.35rem; }
+  .muted { opacity:.68; }
+  .terms { font-size:1.05rem; }
+  .remember { font-size:1.12rem; font-weight:650; }
+  details { margin-top:8px; border-top:1px solid color-mix(in srgb, currentColor 16%, transparent); padding-top:14px; }
+  summary { cursor:pointer; font-weight:650; }
+  .checkpoint { font-size:clamp(1.2rem,2.2vw,1.7rem); }
+  @media (max-width:760px) { .half,.third { grid-column:span 12; } main { padding:14px; } }
+
+/* Shared resilience: narrow screens, keyboard use and reduced motion. */
+main,section,article,.card,.panel{min-width:0}body{overflow-wrap:anywhere}
+img,svg,video{max-width:100%;height:auto}pre{max-width:100%;overflow:auto}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #287ea5;outline-offset:4px}
+button,input,select,textarea,summary{font:inherit}button,select,summary{min-height:44px}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+/* OPTIONAL CONDITION DEMO CSS: remove with demo if unused. */
+.demo-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0}
+.demo-controls label{display:grid;gap:5px}.demo-controls select,.demo-controls input{max-width:100%;min-width:0;border:1px solid currentColor;border-radius:8px;padding:9px;background:Canvas;color:CanvasText}
+.demo-controls button{border:1px solid currentColor;border-radius:10px;padding:8px 14px;background:Canvas;color:CanvasText;cursor:pointer}.demo-controls button:disabled{opacity:.45;cursor:default}
+.demo-output{display:grid;gap:10px}.demo-output p{margin:0;padding:12px;border:1px solid color-mix(in srgb,currentColor 22%,transparent);border-radius:10px}
+.demo-reflection{display:grid;gap:8px;margin-top:18px}.demo-reflection textarea{width:100%;min-height:120px;resize:vertical;border:1px solid currentColor;border-radius:8px;padding:12px;background:Canvas;color:CanvasText}
+/* END OPTIONAL CONDITION DEMO CSS */
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div>
+      <div class="eyebrow">{{CHAPTER}} · Unit {{UNIT_NUMBER}} / {{UNIT_TOTAL}}</div>
+      <h1>{{UNIT_TITLE}}</h1>
+      <div class="muted">{{BREADCRUMB}}</div>
+    </div>
+    <div class="progress">
+      <div class="eyebrow">Progress · {{PROGRESS_PERCENT}}%</div>
+      <div class="bar"><i></i></div>
+    </div>
+  </header>
+
+  <section class="grid">
+    <article class="card">
+      <div class="label">Why</div>
+      <div class="big">{{WHY}}</div>
+    </article>
+
+    <article class="card">
+      <div class="label">Intuition</div>
+      {{INTUITION_VISUAL}}
+      <p class="terms">{{REAL_TERM}}</p>
+    </article>
+
+    <article class="card">
+      <div class="label">How it works</div>
+      {{MECHANISM_VISUAL}}
+    </article>
+
+
+    <!-- BEGIN OPTIONAL CONDITION DEMO: replace with a source-grounded example or
+    remove this article, its marked CSS and script. Not required for every topic.
+    This fictional RAG example is a reusable interaction scaffold, not source evidence.
+    Adapt the causal variable and states for the topic; do not merely rename labels. -->
+    <article class="card" id="condition-demo" aria-labelledby="demo-title">
+      <div class="label">Optional · Predict → Operate → Observe → Explain</div>
+      <h2 id="demo-title">条件改变，证据和回答怎样一起变化？</h2>
+      <p>可选教学示例：Retrieval-Augmented Generation（RAG，检索增强生成）。以下资料完全虚构，运行的是内置预设与固定规则，不是真实检索，也没有调用模型或联网。</p>
+      <p><b>固定问题：</b>松果图书馆工作日几点开放？只改变“资料是否包含开放时间”。</p>
+      <div id="demo-static">
+        <p><b>完整资料：</b>预设片段“工作日 09:00–17:00 开放” → 规则回答“09:00–17:00”；片段直接支持回答。</p>
+        <p><b>缺失资料：</b>预设片段“馆内提供阅览座位” → 规则回答“资料不足，无法确认”；不能从座位信息推断开放时间。</p>
+        <p>思考：为什么第二种情况不能给出同一个时间？答案：缺少支持该时间的证据。这里是教学规则，不保证真实 RAG 系统会拒答。</p>
+      </div>
+      <div id="demo-interactive" hidden>
+        <div class="demo-controls">
+          <label for="demo-condition">条件：资料是否完整
+            <select id="demo-condition"><option value="complete">完整资料</option><option value="missing">缺失关键资料</option></select>
+          </label>
+          <label for="demo-prediction">先预测：回答会怎样改变？
+            <input id="demo-prediction" type="text" maxlength="240" autocomplete="off" placeholder="先写下你的猜测" aria-describedby="demo-privacy">
+          </label>
+        </div>
+        <p id="demo-privacy" class="muted">预测与解释仅用于当前页面练习，不评分、不上传、不自动保存，也不代表已掌握。切换条件或重置会清空两项输入，刷新后不保证保留；需要保留时请自行复制。</p>
+        <div class="demo-controls" role="group" aria-label="模拟步骤控制">
+          <button id="demo-prev" type="button">上一步</button><button id="demo-next" type="button">下一步</button><button id="demo-reset" type="button">重置</button>
+        </div>
+        <div class="demo-output" role="status" aria-live="polite" aria-atomic="true">
+          <p><b>当前步骤：</b><span id="demo-stage"></span></p>
+          <p><b>预设检索片段（Retrieved snippet）：</b><span id="demo-snippet"></span></p>
+          <p><b>规则回答（Answer）：</b><span id="demo-answer"></span></p>
+          <p><b>系统示例解释（System explanation）：</b><span id="demo-explanation"></span></p>
+        </div>
+        <div class="demo-reflection">
+          <p id="demo-reflection-context"></p>
+          <label for="demo-reflection">轮到你解释（Your explanation）：观察到的规则回答是否符合你的预测？哪条片段支持或限制了回答，为什么？</label>
+          <textarea id="demo-reflection" rows="4" maxlength="1200" autocomplete="off" aria-describedby="demo-reflection-context demo-privacy" placeholder="观察后用自己的话说明：条件 → 证据 → 回答；如果与预测不同，指出差异。"></textarea>
+          <p class="muted">这不是自动判分。需要反馈时，可把当前条件、预测和你的解释复制到对话中。</p>
+        </div>
+        <p class="muted">边界：本例只隔离“证据是否包含答案”。真实系统还受召回、排序、资料可靠性和模型行为影响；RAG 不保证回答正确或必然拒答。</p>
+      </div>
+    </article>
+    <!-- END OPTIONAL CONDITION DEMO -->
+
+    <article class="card half">
+      <div class="label">Example</div>
+      {{EXAMPLE}}
+    </article>
+
+    <article class="card half">
+      <div class="label">Connection</div>
+      {{CONNECTION_VISUAL}}
+    </article>
+
+    {{CONFUSION_CARD}}
+
+    <article class="card">
+      <div class="label">Remember</div>
+      <div class="grid">
+        {{REMEMBER_CARDS}}
+      </div>
+      <details>
+        <summary>Deeper detail</summary>
+        {{OPTIONAL_DEEPER_DETAIL}}
+      </details>
+    </article>
+
+    <article class="card">
+      <div class="label">Checkpoint</div>
+      <div class="checkpoint">{{CHECKPOINT}}</div>
+    </article>
+  </section>
+</main>
+
+<!-- BEGIN OPTIONAL CONDITION DEMO SCRIPT: remove with the demo article. -->
+<script>
+(() => {
+  const root = document.getElementById('condition-demo');
+  if (!root) return;
+  const get = id => root.querySelector('#demo-' + id);
+  const condition = get('condition');
+  const prediction = get('prediction');
+  const reflection = get('reflection');
+  let step = 0;
+  // Fictional builtin presets, not live data or an algorithmic retrieval result.
+  const presets = {
+    complete: {snippet:'[虚构资料 A] 松果图书馆工作日 09:00–17:00 开放。', answer:'工作日 09:00–17:00 开放。', reason:'预设片段明确包含开放时间；本例固定规则只复述有直接证据的答案。'},
+    missing: {snippet:'[虚构资料 B] 松果图书馆内提供阅览座位。', answer:'资料不足，无法确认工作日开放时间。', reason:'片段没有开放时间；本例固定规则不允许用座位信息推断时间，因此给出资料不足。'}
+  };
+  const stages = ['1 / 3 · 问题与条件', '2 / 3 · 读取预设片段', '3 / 3 · 按固定规则回答'];
+  function render() {
+    const data = presets[condition.value];
+    get('reflection-context').textContent = '当前练习条件：' + (condition.value === 'complete' ? '完整资料' : '缺失关键资料') + '；固定问题：松果图书馆工作日几点开放？你的预测与解释只对应此条件。';
+    get('stage').textContent = stages[step];
+    get('snippet').textContent = step >= 1 ? data.snippet : '尚未读取。点击下一步观察证据。';
+    get('answer').textContent = step >= 2 ? data.answer : '尚未生成规则回答。';
+    get('explanation').textContent = step === 0 ? '先预测，再逐步观察。条件变化会回到第一步，避免旧结果与新条件混在一起。' : step === 1 ? '此处只选取当前条件对应的内置片段，没有搜索、向量匹配或模型推理。' : data.reason;
+    get('prev').disabled = step === 0;
+    get('next').disabled = step === stages.length - 1;
+  }
+  get('prev').addEventListener('click', () => {step = Math.max(0, step - 1); render();});
+  get('next').addEventListener('click', () => {step = Math.min(stages.length - 1, step + 1); render();});
+  get('reset').addEventListener('click', () => {condition.value = 'complete'; prediction.value = ''; reflection.value = ''; step = 0; render();});
+  condition.addEventListener('change', () => {prediction.value = ''; reflection.value = ''; step = 0; render();});
+  render();
+  get('static').hidden = true;
+  get('interactive').hidden = false;
+})();
+</script>
+<!-- END OPTIONAL CONDITION DEMO SCRIPT -->
+</body>
+</html>

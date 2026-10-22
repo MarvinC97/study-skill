@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<!-- TEMPLATE CONTRACT (Study V3.0)
+Default learner language is zh-CN; change html lang and UI labels when requested.
+Retain source English terms, identifiers, API names and quoted source text accurately.
+Replace every placeholder before delivery. Escape text/attribute values; validate
+navigation URLs. HTML slots accept only trusted authored markup, never raw source
+HTML, scripts or event attributes. Keep source quotations as text, not executable code.
+Use textContent for runtime source strings. No remote dependencies or network calls.
+Test the generated artifact, not only this template, on mobile and without JavaScript.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{PAGE_NUMBER}}｜{{PAGE_TITLE}}</title>
+<style>
+:root{--bg:#f6f7f4;--ink:#17201f;--muted:#61706d;--card:#fff;--line:#d8dfdb;--blue:#2d6680;--amber:#d78538;--green:#357c63;--red:#b95143;--shadow:0 14px 38px #19352b12}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}main{max-width:1050px;margin:auto;padding:28px 22px 60px}a{color:var(--blue);font-weight:700;text-decoration:none}.nav,.bottom{display:flex;justify-content:space-between;align-items:center;gap:12px}.nav{color:var(--muted);font-size:14px}.theme,button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 13px;cursor:pointer}.eyebrow{color:var(--amber);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:12px;margin-top:44px}h1{font-size:clamp(34px,6vw,60px);line-height:1.02;letter-spacing:-.045em;margin:10px 0 14px;max-width:840px}.lede{font-size:20px;color:var(--muted);max-width:780px}.panel{margin-top:26px;padding:25px;background:var(--card);border:1px solid var(--line);border-radius:23px;box-shadow:var(--shadow)}h2{line-height:1.15;margin:0 0 12px;font-size:28px}.visual{margin:20px 0}.reveal{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}.reveal button{border-radius:15px;text-align:left;padding:16px}.reveal button span{display:block;color:var(--muted);font-size:13px;margin-top:5px}.answer{display:none;margin-top:14px;padding:14px 16px;border-left:4px solid var(--green);background:#edf8f2;border-radius:9px}.show .answer{display:block}.micro-details{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:0 15px;background:color-mix(in srgb,var(--card) 96%,var(--green) 4%)}.micro-details summary{cursor:pointer;font-weight:800;padding:14px 0}.micro-details .answer{display:block;margin:0 0 14px}.deep summary{cursor:pointer;font-weight:800;color:var(--blue)}.deep p{color:var(--muted)}.check{border-left:5px solid var(--amber)}.choice{display:flex;flex-wrap:wrap;gap:10px;margin:17px 0}.choice button{border-radius:12px}.feedback{min-height:25px;font-weight:700}.ok{color:var(--green)}.bad{color:var(--red)}.remember{font-size:1.06rem;font-weight:700}.source{font-size:14px;color:var(--muted)}.bottom{margin-top:28px;flex-wrap:wrap}.nav{flex-wrap:wrap}@media(max-width:720px){.reveal{grid-template-columns:1fr}}.dark{--bg:#141b1a;--ink:#edf3ef;--muted:#a9b7b2;--card:#1e2926;--line:#35433f;--blue:#8ec5de;--amber:#efad62;--green:#75c49f;--red:#eb8e80}.dark .answer{background:#1b3329}
+
+/* Shared resilience: narrow screens, keyboard use and reduced motion. */
+main,section,article,.card,.panel{min-width:0}body{overflow-wrap:anywhere}
+img,svg,video{max-width:100%;height:auto}pre{max-width:100%;overflow:auto}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #287ea5;outline-offset:4px}
+button,input,select,summary{font:inherit}button,select,summary{min-height:44px}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<!-- STUDY-D CONTRACT: use native details.micro-details with a summary question
+and an .answer child for each micro-question; omit open so answers start hidden.
+Native disclosure works with keyboard and without JS. Preserve optional deep detail.
+CHECKPOINT_SCRIPT is trusted authored code only; never interpolate source/user text
+into executable JavaScript. Provide a native details answer/explanation fallback in
+CHECKPOINT_INTERACTION. INDEX_HREF normally resolves to index.html. Check all links.
+-->
+<body><main>
+<div class="nav"><span>{{PAGE_POSITION}} · {{CHAIN_LABEL}}</span><button class="theme" id="theme" type="button" hidden aria-pressed="false">切换主题</button></div>
+<p class="eyebrow">{{SECTION_LABEL}}</p>
+<h1>{{PAGE_TITLE}}</h1>
+<p class="lede">{{PAGE_LEDE}}</p>
+
+<section class="panel">
+  <h2>{{CORE_VISUAL_TITLE}}</h2>
+  <div class="visual">{{CORE_VISUAL}}</div>
+  {{MICRO_QUESTION_BLOCKS}}
+</section>
+
+{{SECONDARY_KNOWLEDGE_BLOCKS}}
+
+<details class="panel deep">
+  <summary>{{DEEPER_QUESTION}}</summary>
+  {{DEEPER_ANSWER}}
+</details>
+
+<section class="panel check">
+  <h2>Checkpoint</h2>
+  <p>{{CHECKPOINT_QUESTION}}</p>
+  {{CHECKPOINT_INTERACTION}}
+  <div id="feedback" class="feedback" aria-live="polite"></div>
+</section>
+
+<section class="panel">
+  <h2>Remember</h2>
+  <p class="remember">{{REMEMBER}}</p>
+  <p class="source">{{SOURCE_ANCHOR}}</p>
+</section>
+
+<nav class="bottom" aria-label="学习页面导航"><a href="{{PREVIOUS_HREF}}">{{PREVIOUS_LABEL}}</a><a href="{{INDEX_HREF}}">学习地图</a><a href="{{NEXT_HREF}}">{{NEXT_LABEL}}</a></nav>
+</main>
+<script>
+const body=document.body,t=document.querySelector('#theme');
+try { if(localStorage.getItem('studyTheme')==='dark')body.classList.add('dark'); } catch (_) { /* Storage is optional. */ }
+t.hidden=false;
+t.setAttribute('aria-pressed',String(body.classList.contains('dark')));
+t.onclick=()=>{
+  body.classList.toggle('dark');
+  const dark=body.classList.contains('dark');
+  t.setAttribute('aria-pressed',String(dark));
+  try { localStorage.setItem('studyTheme',dark?'dark':'light'); } catch (_) { /* Keep working in memory. */ }
+};
+// Legacy button reveal support; prefer the native details contract above.
+document.querySelectorAll('button[data-reveal]').forEach(x=>{
+  x.setAttribute('aria-expanded',String(x.classList.contains('show')));
+  x.onclick=()=>{x.classList.toggle('show');x.setAttribute('aria-expanded',String(x.classList.contains('show')));};
+});
+{{CHECKPOINT_SCRIPT}}
+</script>
+</body></html>
