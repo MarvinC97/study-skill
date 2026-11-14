@@ -1,0 +1,42 @@
+{
+  "version": "6.0-preview",
+  "source": "https://github.com/bojieli/ai-agent-book/blob/main/book/chapter8.md",
+  "git_blob_sha": "38eb64bf45b9e844b6bdbcbedfc61b9dcc12244b",
+  "scope": "Chapter 8 pages 1-2 only; no complete chapter outline verification",
+  "authoring": "model-authored content contract; offline render. Live Manager/worker API calls not executed.",
+  "page_count": 2,
+  "pages": [
+    {
+      "page_id": "P001",
+      "file": "01-four-training-stages.html",
+      "required_fact_ids": [
+        "CH08-P01-F01",
+        "CH08-P01-F02",
+        "CH08-P01-F03",
+        "CH08-P01-F04",
+        "CH08-P01-F05",
+        "CH08-P01-F06",
+        "CH08-P01-F07",
+        "CH08-P01-F08"
+      ],
+      "source_section": "从预训练到 RL：四阶段全景／表8-1及本章开篇",
+      "sha256": "5ce50cb23960f746ca66f32796f7e3d126f9ea956c5df955cbcbae93b72adbdc"
+    },
+    {
+      "page_id": "P002",
+      "file": "02-next-token-prediction.html",
+      "required_fact_ids": [
+        "CH08-P02-F01",
+        "CH08-P02-F02",
+        "CH08-P02-F03",
+        "CH08-P02-F04",
+        "CH08-P02-F05",
+        "CH08-P02-F06",
+        "CH08-P02-F07",
+        "CH08-P02-F08"
+      ],
+      "source_section": "从预训练到 RL：四阶段全景 → 预训练在做什么：预测下一个词",
+      "sha256": "93ff2dd9397edebbd4d286a1db67439981d8275cb17bc03dd0eeb80ff4de2643"
+    }
+  ]
+}

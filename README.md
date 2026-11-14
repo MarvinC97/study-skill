@@ -1,3 +1,5 @@
+> **Study V6.1 Agent Runtime（候选版）**：以 V6.0 Manager/Host 为基础，保留 V3.5 首次建档、学习者档案、理解证据和进度恢复。参阅[运行说明](study/runtime/README.md)与[V6.1 验证报告](study/V6.1_VALIDATION_REPORT.md)。真实模型完整章节验收尚未完成。
+
 <p align="center">
   <img src="study/assets/icon.svg" alt="好好学习图标" width="84" />
 </p>
@@ -11,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/版本-V3.5-2563eb" />
+  <img alt="Version" src="https://img.shields.io/badge/版本-V6.1-2563eb" />
   <img alt="Agent Skill" src="https://img.shields.io/badge/类型-Agent%20Skill-7c3aed" />
   <img alt="Language" src="https://img.shields.io/badge/教学语言-中文-16a34a" />
   <img alt="Input" src="https://img.shields.io/badge/学习来源-书籍%20%7C%20GitHub%20%7C%20视频-f59e0b" />
@@ -25,7 +27,7 @@
 
 ## 这是什么？
 
-**好好学习（Study V3.5）** 是一个用于 AI Agent 的自适应学习 Skill。你可以给它一本书、一份 PDF、一个 GitHub 仓库链接，或者带有可读取内容的视频链接。它会基于实际读取的资料，先提取**知识点（Learning Points）**，梳理前置知识和依赖关系，再把知识点编排成适合逐步学习的 **Unit（学习单元）**。
+**好好学习（Study V6.1）** 是一个用于 AI Agent 的自适应学习 Skill。你可以给它一本书、一份 PDF、一个 GitHub 仓库链接，或者带有可读取内容的视频链接。它会基于实际读取的资料，先提取**知识点（Learning Points）**，梳理前置知识和依赖关系，再把知识点编排成适合逐步学习的 **Unit（学习单元）**。
 
 第一次使用时，它会引导你建立**学习者档案**，了解你已有的知识、学习目标和适合的讲解方式。之后的课程根据你的实际回答、理解困难和测验结果调整教学内容；完成阶段考核后，更新相应学习记录。
 
@@ -205,7 +207,7 @@ study/
 - **可恢复、可检查：** 提供本地状态和 Python 校验脚本；结构校验不等于教学质量已验证。
 - **依赖运行环境：** 网页读取、视频字幕、HTML 交互和文件持久化由宿主能力决定。
 
-本项目当前为 **V3.5**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；代码包目前未附带开源授权文件。
+本项目当前为 **V6.1**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；代码包目前未附带开源授权文件。
 
 ---
 
