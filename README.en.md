@@ -1,3 +1,5 @@
+> **V6.1 Agent Runtime** · V6 Manager + Host and G1–G6 quality gates, retaining V3.5 learner profiles, onboarding, learning evidence and resume. Live model generation requires provider and browser configuration; a full real-model chapter run is still pending.
+
 <p align="center"><img src="study/assets/icon.svg" alt="Hao Hao Xue Xi icon" width="84" /></p>
 <h1 align="center">好好学习 · Study</h1>
 <p align="center"><strong>Turn fast-changing AI knowledge into a personal, evidence-based learning path.</strong></p>
@@ -12,7 +14,7 @@
 
 AI tools, frameworks and practices evolve quickly. A single book can be dense, a GitHub project can be unfamiliar, and a long video can hide important prerequisites. People bring different backgrounds to the same material.
 
-**好好学习 (Study V3.5)** is an Agent Skill built around a simple learning loop: **read the actual source → identify Learning Points (LPs) → organize prerequisite-aware Units → teach according to the learner's profile → assess real understanding → continue from recorded progress.**
+**好好学习 (Study V6.1)** is an Agent Skill built around a simple learning loop: **read the actual source → identify Learning Points (LPs) → organize prerequisite-aware Units → teach according to the learner's profile → assess real understanding → continue from recorded progress.**
 
 ## Supported sources
 
