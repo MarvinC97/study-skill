@@ -197,7 +197,7 @@ study/
     └── study_quiz_check.py  # 测验数据结构检查
 ```
 
-完整规则见 [`study/SKILL.md`](study/SKILL.md)。首次运行流程见 [`first-use.md`](study/references/first-use.md)，资料支持情况见 [`source-adapters.md`](study/references/source-adapters.md)。
+完整规则见 [`study/SKILL.md`](study/SKILL.md)，Windows 运行命令与产物交付协议见 [`study/runtime/README.md`](study/runtime/README.md)。首次运行流程见 [`first-use.md`](study/references/first-use.md)，资料支持情况见 [`source-adapters.md`](study/references/source-adapters.md)。
 
 ## 设计原则与当前边界
 
@@ -207,7 +207,7 @@ study/
 - **可恢复、可检查：** 提供本地状态和 Python 校验脚本；结构校验不等于教学质量已验证。
 - **依赖运行环境：** 网页读取、视频字幕、HTML 交互和文件持久化由宿主能力决定。
 
-本项目当前为 **V6.1**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；代码包目前未附带开源授权文件。
+本项目当前为 **V6.1**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；仓库的许可信息见 [`LICENSE`](LICENSE)。
 
 ---
 
