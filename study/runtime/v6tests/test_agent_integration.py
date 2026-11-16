@@ -46,7 +46,7 @@ class HostOpsIntegration(unittest.TestCase):
    host.atomic_json(w/'drafts'/'U001.json',draft)
    artifact={'points':points,'draft':draft}
    receipt={'review_mode':'isolated_host_agent','reviewer_context_id':'R2','writer_context_id':'W2',
-       'artifact_sha256':agent.digest(artifact),'checked_fact_ids':draft['represented_fact_ids'],
+       'artifact_sha256':agent.digest(draft),'checked_fact_ids':draft['represented_fact_ids'],
        'approved':True,'issues':[]}
    host.atomic_json(w/'reviews'/'U001-unit-review.json',receipt)
    with patch.object(v6_ops,'browser_check',return_value={'passed':True}):
