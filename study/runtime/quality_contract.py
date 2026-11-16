@@ -212,6 +212,34 @@ def authored_text(draft):
     return texts
 
 
+def dimension_text(draft,dimension):
+    """Reviewer quotation must come from the type of teaching it assesses."""
+    records=[x for x in draft.get("teaching_evidence",[]) if isinstance(x,dict)]
+    if dimension=="assessment_fairness":
+        ck=draft.get("checkpoint",{})
+        return [clean(ck.get("rubric"))] if isinstance(ck,dict) else []
+    texts=[]
+    for record in records:
+        if dimension=="mechanism":texts.append(clean(record.get("core_explanation")))
+        elif dimension=="causal_reasoning":
+            texts.extend(clean(x) for x in record.get("causal_steps",[]) if isinstance(x,str))
+        elif dimension=="worked_example":
+            ex=record.get("worked_example",{})
+            if isinstance(ex,dict):
+                texts.extend(clean(ex.get(k)) for k in ("scenario","input","outcome","why"))
+                texts.extend(clean(x) for x in ex.get("reasoning_steps",[]) if isinstance(x,str))
+        elif dimension=="conditions_and_limits":
+            for k in ("conditions","limitations"):
+                texts.extend(clean(x) for x in record.get(k,[]) if isinstance(x,str))
+        elif dimension=="source_fidelity":
+            texts.extend(clean(x.get("explanation")) for x in record.get("fact_explanations",[]) if isinstance(x,dict))
+        elif dimension=="experiment_methods":
+            ex=record.get("experiment",{})
+            if isinstance(ex,dict):
+                texts.extend(clean(ex.get(k)) for k in EXPERIMENT_FACETS)
+    return texts
+
+
 def validate_plan_review_audits(review,source,plan):
     if plan.get("mode")!="study-d":return []
     issues=[];inventory=plan.get("source_inventory",[]);points=plan.get("points",[])
@@ -284,6 +312,6 @@ def validate_content_review_audits(entry,points,draft,source):
         if (dimension.get("passed") is not True or
             not substantial(dimension.get("reason"),45) or
             not substantial(quote,35) or
-            not any(quote in text for text in actual)):
+            not any(quote in text for text in dimension_text(draft,dimension.get("dimension")))):
             issues.append("G4 unsupported quality dimension "+str(dimension.get("dimension")))
     return issues
