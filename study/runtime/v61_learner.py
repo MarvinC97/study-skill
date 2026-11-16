@@ -257,12 +257,30 @@ def mark_artifact(workspace,kind,artifact_path,topic='',lp_ids=None):
     if not p.is_file():raise LearnerError('artifact missing: '+str(p))
     artifact_id='artifact-'+hashlib.sha256(str(p.resolve()).encode()).hexdigest()[:12]
     item={'id':artifact_id,'revision':1,'kind':kind,'lp_ids':lp_ids or [],'unit_ids':[],
-          'generation_status':'verified','delivery_status':'delivered',
+          'generation_status':'verified','delivery_status':'not_delivered',
           'reference':str(p.resolve()),'availability':'available','provenance':'newly_generated',
           'sha256':source_hash(p),'topic':topic}
     lst=d.setdefault('artifacts',[]);lst[:]=[x for x in lst if x.get('id')!=artifact_id];lst.append(item)
     save_course(w,d)
     return {'artifact_id':artifact_id,'mastery_changed':False}
+
+
+def confirm_artifact_delivery(workspace,artifact_path):
+    """Mark a generated explanation or quiz delivered only on a host receipt."""
+    w=Path(workspace);candidate=Path(artifact_path).resolve()
+    if not candidate.is_file():raise LearnerError('artifact missing before confirmation')
+    d=course(w)
+    entry=next((a for a in d.get('artifacts',[])
+        if a.get('kind') in ('explanation','quiz') and a.get('reference')==str(candidate)),None)
+    if entry is None:raise LearnerError('artifact has no registered delivery record')
+    if entry.get('sha256')!=source_hash(candidate):
+        raise LearnerError('artifact hash changed before confirmation')
+    if entry.get('delivery_status')=='delivered':
+        return {'confirmed':True,'duplicate':True,'artifact_id':entry['id']}
+    entry['delivery_status']='delivered'
+    save_course(w,d)
+    return {'confirmed':True,'duplicate':False,'artifact_id':entry['id']}
+
 
 def record_assessment(workspace,lp_id,actual_answer,rubric,outcome,question_id,answer_source,assistance='independent',reviewed=False,source_ref=None):
     """A learner's actual answer and reviewed rubric, never an inferred click/view."""
@@ -344,7 +362,7 @@ def deep_branch(workspace,module_workspace,topic,return_unit=None,next_page=0):
             # Preserve pending/delivering/paused/completed and the original return point.
             # Only explicit delivery confirmation may advance next_page.
             return existing
-        if existing.get('status') in ('pending','delivering'):
+        if existing.get('status') in ('pending','delivering','paused'):
             raise LearnerError('another deep branch is active; pause or finish it first')
     item={'topic':topic,'workspace':str(module),'next_page':next_page,
           'main_return':return_unit if return_unit is not None else nav.get('current_unit_index',0),
