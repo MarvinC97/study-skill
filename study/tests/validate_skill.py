@@ -29,8 +29,10 @@ for html in (ROOT/'assets').glob('*.html'):
 assert 'source-core' in (ROOT/'references'/'storm-questioning.md').read_text()
 assert '/study-c' in (ROOT/'references'/'consolidation.md').read_text()
 assert 'overview' in (ROOT/'references'/'source-planning.md').read_text().lower()
-assert 'one HTML link' in (ROOT/'SKILL.md').read_text()
-assert 'at least five' in (ROOT/'SKILL.md').read_text()
+assert 'one page per learner-visible' in (ROOT/'SKILL.md').read_text()
+assert '6–10' in (ROOT/'SKILL.md').read_text()
 assert 'fully visible' in (ROOT/'SKILL.md').read_text()
-print('PASS: frontmatter, 7 commands, progressive disclosure, 14 references, HTML templates')
+assert 'Codex/DSH agent' in main, 'Skill must use host model'
+assert 'STUDY'+'_API_KEY' not in main, 'Study should not request an independent provider credential'
+print('PASS: host-native model, 7 commands, progressive disclosure, references, HTML templates')
 print('STATIC ONLY: this does not certify Agent runtime behavior, source correctness or HTML browser interaction')

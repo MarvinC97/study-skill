@@ -1,11 +1,11 @@
-> **V6.1 Agent Runtime** · V6 Manager + Host and G1–G6 quality gates, retaining V3.5 learner profiles, onboarding, learning evidence and resume. Live model generation requires provider and browser configuration; a full real-model chapter run is still pending.
+> **V6.2 Host-Native Study Skill** · Uses the model already connected to Codex/DSH. Retains learner profiles, onboarding, G1–G6 quality gates and recoverable learning evidence. No separate model API or provider credentials are required; browser QA depends on available host tools.
 
 <p align="center"><img src="study/assets/icon.svg" alt="Hao Hao Xue Xi icon" width="84" /></p>
 <h1 align="center">好好学习 · Study</h1>
 <p align="center"><strong>Turn fast-changing AI knowledge into a personal, evidence-based learning path.</strong></p>
 <p align="center"><a href="README.md">简体中文</a> · <a href="README.en.md">English</a> · <a href="#quick-start">Quick Start</a></p>
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-V6.1-2563eb" />
+  <img alt="Version" src="https://img.shields.io/badge/version-V6.2-2563eb" />
   <img alt="Type" src="https://img.shields.io/badge/type-Agent%20Skill-7c3aed" />
   <img alt="Inputs" src="https://img.shields.io/badge/sources-Books%20%7C%20GitHub%20%7C%20Videos-f59e0b" />
 </p>
@@ -14,7 +14,7 @@
 
 AI tools, frameworks and practices evolve quickly. A single book can be dense, a GitHub project can be unfamiliar, and a long video can hide important prerequisites. People bring different backgrounds to the same material.
 
-**好好学习 (Study V6.1)** is an Agent Skill built around a simple learning loop: **read the actual source → identify Learning Points (LPs) → organize prerequisite-aware Units → teach according to the learner's profile → assess real understanding → continue from recorded progress.**
+**好好学习 (Study V6.2)** is an Agent Skill built around a simple learning loop: **read the actual source → identify Learning Points (LPs) → organize prerequisite-aware Units → teach according to the learner's profile → assess real understanding → continue from recorded progress.**
 
 ## Supported sources
 
@@ -108,3 +108,6 @@ For local Runtime commands, host delivery confirmation, and quiz answer persiste
 Source-grounded teaching, conservative assessment, stable LP identifiers and resumable state are core design requirements. The bundled Python scripts validate structural contracts; educational correctness and fully rendered interactions require additional review.
 
 No open-source `LICENSE` file has been selected for this distribution; confirm permissions and publication scope before public release.
+
+
+**Host model:** Study runs on the current Codex/DSH session's configured model. Local Python utilities perform deterministic validation, rendering and progress recording; they do not configure a second provider. See [host-native Runtime](study/runtime/README.md).

@@ -1,77 +1,115 @@
 ---
 name: study
-version: "6.1"
+version: "6.2"
 description: >
-  Source-grounded visual tutoring with an autonomous Study Manager and a fail-closed
-  local Host. Use when the user invokes /study, /study-n, /study-e, /study-d,
-  /study-q, /study-c, or /study-m to learn books, GitHub chapters, PDFs, and
-  technical documents. Preserve source coverage, atomic units, visual and
-  interactive explanations, real verification and recoverable progress.
+  Host-native, source-grounded adaptive tutoring for Codex, DSH, and other
+  agents. Activate on /study, /study-n, /study-e, /study-d, /study-q, /study-c,
+  and /study-m. Use the host's EXISTING model and tools, preserve source
+  coverage, quality checks, user-approved deep outlines and persistent progress.
 ---
 
-# Study V6.1 — Agent Entry Point
+# Study V6.2 — Host-Native Agent Skill
 
-Keep this entry lightweight. V6.0 Agent Manager and G1–G6 Host remain the execution base. V6.1 restores V3.5 named learner profiles, first-use intake, scoped understanding evidence and cross-session recovery. Load references only for the relevant operation.
+## Execution architecture — authoritative
 
-## Commands (only 7)
+The currently connected **Codex/DSH agent is the Study Manager, Planner and Tutor**.
+Use the host's normal model reasoning, built-in file/web tools, and available
+delegated agents. NEVER request a second model API, provider key, endpoint,
+model setting, or environment variable for Study. No separate model process,
+network model client, background worker, or paid API is required by this Skill.
 
-| User command | Contract | Local Runtime |
+Python under `runtime/` is a deterministic **optional local Host checker**:
+it reads/writes JSON, checks source hashes and G1–G6 receipts, renders/QA-tests
+HTML, and persists learning evidence. It never supplies model intelligence.
+When shell execution is unavailable, follow the same contracts with host file
+tools and report unverifiable gates accurately; do not fake a successful check.
+
+## Seven learner commands — no extra slash commands
+
+| Command | Host action | Local deterministic helper when available |
 |---|---|---|
-| `/study <source>` | Read full selected source, atomize Learning Points, review outline, deliver overview ONLY | `v6_agent.py run --mode study` |
-| `/study-n` | Advance exactly one Unit, preserving progress and requiring independent review and browser QA | `v6_ops.py study-n` (then host confirmation) |
-| `/study-e <topic>` | Re-explain current gap, with intuition, simple/Agent/engineering examples and return point | `v6_ops.py study-e --topic` |
-| `/study-d <topic>` | Complete LP inventory → frozen outline → one mechanism/decision/case per page → hidden microquestions → independent review → page-by-page delivery | `v6_agent.py run --mode study-d` |
-| `/study-q <topic>` | Entire 6–10-question (at least five) multi-angle exam; first HTML hides answer key | `v6_ops.py study-q --topic` |
-| `/study-c <topic>` | One expanded HTML of all GENERATED matching material, question answers, exam keys and feedback; fully visible core content | `v6_ops.py study-c --topic` |
-| `/study-m` | Source-grounded Learning Point/Unit map, relations and progress | `v6_ops.py study-m` |
+| `/study <source>` | Read the selected source; inventory all relevant Learning Points; plan Units; show overview ONLY | `v6_agent.py bind/ingest/plan-check/accept-plan-review/overview` |
+| `/study-n` | Write and review the next Unit draft, then deliver one HTML page | `v6_ops.py study-n/confirm-delivery` |
+| `/study-e <topic>` | Re-explain one gap; preserve the main return point | `v6_ops.py study-e/confirm-delivery` |
+| `/study-d <topic>` | Exhaustive anchored LP inventory, reviewed page plan, user-approved outline, then pages in order | `v6_agent.py bind/ingest/plan-check/accept-plan-review/approve-outline/freeze/render/accept-content-review/verify/publish/deliver-next/confirm-delivery` |
+| `/study-q <topic>` | Host authors 6–10 multi-angle questions; show question-only HTML; assess real answers | `v6_ops.py study-q/study-q-submit` |
+| `/study-c <topic>` | Consolidate ALL existing content and available answers in one fully visible HTML | `v6_ops.py study-c` |
+| `/study-m` | Show source-grounded LP/Unit map and actual progress, separately from mastery | `v6_ops.py study-m` |
 
-## V6.1 host handoff (mandatory for all deliveries)
+The commands are host-interpreted actions, not a direct Python model interface.
+Load `references/v6-agent-runtime.md` for exact host-native file contracts,
+reviewer receipts, Windows examples and continuation behavior.
 
-- A generated or reviewed HTML file is **prepared**, not yet delivered. After the host makes the exact file accessible in a learner-facing response, call `runtime/v6_ops.py confirm-delivery --workspace WORKSPACE --file FILE` for standard Units, explanations and exams.
-- Deep module pages use `runtime/v6_agent.py deliver-next --workspace DEEP_WORKSPACE` to prepare **one** pending HTML, and `runtime/v6_agent.py confirm-delivery --workspace DEEP_WORKSPACE --file FILE` only after the host presents that exact page. Preparing the same page again before confirmation is idempotent.
-- Only confirmed delivery advances the Unit/deep page cursor. Never advance by file creation, review, a tool's successful return, or the existence of a generated link. A missing host delivery capability leaves the item pending. Hash mismatch blocks confirmation.
-- Capture actual learner exam answers from a learner message or explicitly supplied file and call `runtime/v6_ops.py study-q-submit --workspace WORKSPACE --topic TOPIC --answers-file ANSWERS.json`. The independent reviewer grades answers against the original source/rubrics and stores scoped evidence in the canonical course `study-state.json`. HTML selection/click alone cannot promote mastery.
-- Re-entering an existing Study-D branch preserves `next_page` and `main_return`. Pause/resolve an active branch explicitly before selecting another branch. Confirm one delivered page at a time.
+## First use, profiles and cross-session continuity
 
-All commands accept a stable persistent `--workspace`. Keep `source.json`, `plan.json`, `reviews/`, `drafts/`, execution state and artifacts. The learner's profile and canonical course evidence live **outside** the Skill installation. Do not write personal learning records into public GitHub repositories.
+- Start with `references/first-use.md`, `schemas/learner-profile.md`,
+  `schemas/learning-point.md`. Reuse a previously confirmed English alias.
+- Resolve one persistent `--study-root` and one `--workspace` per course.
+  Learner profile and canonical course `study-state.json` stay OUTSIDE the Skill
+  installation. Host `state.json` is a separate execution gate/cursor record.
+- Follow name → profile → goal → preliminary source-grounded map → familiarity
+  → final overview. `/study` is OVERVIEW only. `/study-n` teaches Unit 1.
+- On every resumed session, read the persisted learner profile, course evidence,
+  current Unit, any pending Study-D branch, file hashes and pending delivery.
+  Preserve `next_page` and `main_return`; do not reset either on re-entry.
+- Opening an HTML page, clicking an answer reveal or moving the cursor never
+  proves knowledge. Only actual attributable answers assessed with a rubric
+  can promote `understood` or `applied`.
 
-## V6.1 learner continuity — mandatory for new learners and returning courses
+## Source and teaching fidelity
 
-1. New `/study`: read `references/first-use.md` and `schemas/learner-profile.md`. Reuse a confirmed English alias if already supplied; otherwise ask for one. Bind with `runtime/v61_learner.py bind` or `v6_agent.py run --learner-name NAME`. Explicit `--temporary` is the opt-out for profile storage.
-2. Follow name → profile → goal → preliminary source-grounded map → relevant prerequisite/target familiarity → finalized overview. `/study` still delivers **overview only**; `/study-n` starts Unit 1 after intake is finalized. Use `v61_learner.py intake` for goal/familiarity readback.
-3. V3.5 `study-state.json` schema 3.0 is canonical for LP understanding and actual answer evidence. V6 Host `state.json` is authoritative for execution gates. `v61_learner.py` bridges both without replacing legacy keys. Read `references/learning-loop.md` for stage assessment and course-to-profile chapter summary.
-4. Before `/study-n`, resume the verified saved Unit position and pending `/study-d` branch. Page delivery never promotes mastery. For `/study-e` or `/study-q`, register the generated artifact; real independently reviewed answers are required for `understood`/`applied` status. Read `references/learner-adaptation.md` only if it improves the current teaching decision.
-5. Preserve V3.5 existing `study_home.py`, `study_check.py`, `study_quiz_check.py`, `first-use.md`, learner state schemas and records when integrating into an existing repository. Use `scripts/merge_into_repo.py` for a dry-run additive merge, not a blanket overwrite.
+1. Read `references/source-adapters.md` and `references/source-planning.md`
+   before building the map. Read actual material, not only titles or summaries.
+2. Inventory complete bounded source scope. Preserve page/file/line/heading/
+   timestamp anchors, conditions, exceptions, experiments, diagrams and code.
+3. Host authors `source.json`, `plan.json`, and `drafts/<page-id>.json`
+   through ordinary host tools; local checker validates structure and hashes.
+4. For lessons load `references/lesson-teaching.md`,
+   `references/writing-clarity.md`, `references/visual-semantics.md` and
+   `references/interaction-design.md` as needed.
+5. For deep topics also load `references/deep-module.md` and selectively
+   `references/storm-questioning.md`. One independent mechanism/decision/case
+   per deep page; split dense concepts instead of omitting knowledge.
+6. For exams and archives load `references/review-quiz.md`,
+   `references/consolidation.md`, and `references/learning-loop.md`.
+   Preserve English technical terms, APIs, code and formulas with Chinese
+   explanations on first occurrence. Label tutor inferences and extensions.
 
-## Required loading sequence
+## Independent review and real Host gates
 
-1. Before using a source read `references/source-adapters.md`, `references/source-planning.md`; verify actual source text, not a filename or title.
-2. Before manager execution read `references/v6-agent-runtime.md`. Host executes `runtime/v6_agent.py`, not a Chat-only simulation of the gates.
-3. For Unit authoring read `references/lesson-teaching.md`, `references/writing-clarity.md`, `references/visual-semantics.md`, `references/interaction-design.md`.
-4. For deep multi-page authoring additionally read `references/deep-module.md` and `references/storm-questioning.md` selectively for complex topics.
-5. For exam or consolidation read `references/review-quiz.md` or `references/consolidation.md` on demand.
-6. Before claiming verification read `references/presentation-qa.md` and inspect actual runtime receipts; tests must execute on the GENERATED HTML.
+- When the host supports delegated/subagent tasks, assign plan/content/answer
+  review to an isolated reviewer context with actual source spans and draft;
+  isolate it from the author's conversation. Save checked fact/span IDs, exact
+  file hashes, reviewer ID, decision and issues. Host-native review uses the
+  existing connected model through its normal delegation capability.
+- If the host cannot isolate a reviewer, mark G2/G4 as
+  `REVIEW_UNVERIFIED`. Never claim "independently approved", manufacture
+  reviewer metadata, or call an external API as a workaround.
+- G1: actually read all selected source material and anchor each span.
+- G2: atomic LP coverage, bounded pages, independent plan review; **every
+  Study-D outline must be explicitly approved by the learner after review**,
+  before writing its pages.
+- G3: complete source facts, conditions, exceptions and examples in drafts
+  and visible HTML.
+- G4: independent technical and pedagogical content review, real receipts.
+- G5: generated HTML tested in a real browser: mobile/desktop, keyboard, reset,
+  feedback and JavaScript-disabled core. When browser tooling is missing,
+  report `NOT_RUN` and deliver only appropriately qualified drafts.
+- G6: final artifact exists with matching hash, one page per learner-visible
+  message, and confirmed delivery checkpoint; preserve queued pages.
 
-## Agent autonomy vs Host authority
+## Delivery and assessment
 
-- Manager decides the next allowed action after observing state and failures. Workers are isolated source reader, planner, tutor, visual builder, independent reviewer and browser checker tasks.
-- Host exposes the allowed tool set per state; it rejects unapproved actions and enforces G1–G6 gates. Manager cannot self-approve its own syllabus.
-- Plan failure routes to Planner; explanation gap to Tutor; rendering/interaction error to Visual/QA. Bound retries and persist all receipts.
-- `/study-d` on a dense source requires user approval of the current reviewed outline before publishing pages.
-- Maintain one HTML link per separate user-visible delivery message. `deliver-next` advances exactly one page per call; no automated host messages across turns.
-- Preserve English technical terms, code, API names and parameters. First occurrence gets a concise Chinese explanation. Distinguish source claims from instructional inference and simulation.
-- A page view or button click never constitutes mastery. Keep source anchors and verified learner evidence distinct.
-- When no model provider or browser is available, stop with explicit blocked/unverified status. Never label fixture/demo execution as a live Agent run.
-
-## Quality contracts
-
-- G1: source extraction complete within selected scope, with stable hash and span anchors.
-- G2: all important spans mapped to atomic LPs, no overloaded pages, independent outline review; owner approval where required.
-- G3: each required fact/condition/exception/example represented in a complete content draft and visible HTML.
-- G4: isolated independent technical/pedagogical review rejects omissions and wrong reasoning.
-- G5: generated HTML actually rendered and interacted with in browser (keyboard, mobile, reset, feedback, JS-off core).
-- G6: artifact exists, hash matches, queued one link per turn, progress persists.
-
-The first two Chapter 8 HTML files under `examples/chapter8-preview/` are model-authored acceptance previews. Their source coverage and browser behavior were tested; the full live model-driven manager loop remains a separate acceptance step requiring configured API credentials.
-
-V6.1 learner compatibility is tested with temporary local profiles. Real external model-driven chapter generation and cross-device sync remain separate validation tasks.
+- Preparing/reviewing a page and presenting that file to the learner are two
+  distinct steps. Call the relevant `confirm-delivery --file` ONLY after the
+  host made the same artifact accessible to the learner. No automatic
+  across-turn delivery promises.
+- /study-d presents the reviewed outline to the user for approval BEFORE
+  any content pages are generated. An explicit approval is necessary even on
+  a short topic. Never approve on the learner's behalf.
+- For `/study-q`, capture the user's actual answer (chat or submitted file).
+  Use the host's isolated reviewer to produce a graded, source-anchored JSON
+  receipt; `study-q-submit --review-file` persists it. HTML interactions
+  alone do not generate verified answer evidence.
+- Preserve G1–G6 receipts, learner evidence, intermediate drafts and final
+  files. Never present fixture/mock/browser-only results as live learning QA.
