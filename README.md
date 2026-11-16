@@ -1,4 +1,4 @@
-> **V6.1 Agent Runtime** · V6 Manager + Host / G1–G6 质量门禁；完整保留原 V3.5 学习者档案、首次建档、学习证据、进度恢复。运行端仍需模型 API 与浏览器能力，真实模型的整章端到端生成尚未验收。
+> **V6.2 Host-Native Study Skill** · 直接使用当前 Codex/DSH 会话模型与工具。完整保留学习者档案、G1–G6 质量门禁、首次建档、答题证据和进度恢复。无需单独配置模型 API 或密钥；HTML 浏览器验证需要宿主具备相应工具。
 
 <p align="center">
   <img src="study/assets/icon.svg" alt="好好学习图标" width="84" />
@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/版本-V6.1-2563eb" />
+  <img alt="Version" src="https://img.shields.io/badge/版本-V6.2-2563eb" />
   <img alt="Agent Skill" src="https://img.shields.io/badge/类型-Agent%20Skill-7c3aed" />
   <img alt="Language" src="https://img.shields.io/badge/教学语言-中文-16a34a" />
   <img alt="Input" src="https://img.shields.io/badge/学习来源-书籍%20%7C%20GitHub%20%7C%20视频-f59e0b" />
@@ -27,7 +27,7 @@
 
 ## 这是什么？
 
-**好好学习（Study V6.1）** 是一个用于 AI Agent 的自适应学习 Skill。你可以给它一本书、一份 PDF、一个 GitHub 仓库链接，或者带有可读取内容的视频链接。它会基于实际读取的资料，先提取**知识点（Learning Points）**，梳理前置知识和依赖关系，再把知识点编排成适合逐步学习的 **Unit（学习单元）**。
+**好好学习（Study V6.2）** 是一个用于 AI Agent 的自适应学习 Skill。你可以给它一本书、一份 PDF、一个 GitHub 仓库链接，或者带有可读取内容的视频链接。它会基于实际读取的资料，先提取**知识点（Learning Points）**，梳理前置知识和依赖关系，再把知识点编排成适合逐步学习的 **Unit（学习单元）**。
 
 第一次使用时，它会引导你建立**学习者档案**，了解你已有的知识、学习目标和适合的讲解方式。之后的课程根据你的实际回答、理解困难和测验结果调整教学内容；完成阶段考核后，更新相应学习记录。
 
@@ -163,7 +163,7 @@ Study 设计了两种核心学习模式，并用一组简短命令控制教学�
 
 **1. 下载源码。** 点击仓库页面的 **Code → Download ZIP**，解压。
 
-**2. 安装 Skill。** 将完整 `study/` 文件夹放到支持 Agent Skills 的工具所识别的 Skill 目录，确保 `SKILL.md` 在该文件夹顶层。
+**2. 安装 Skill。** 将完整 `study/` 文件夹放到 Codex/DSH 识别的 Skill 目录，确保 `SKILL.md` 在该文件夹顶层。使用宿主当前已连接的模型；Study 无需另配模型 API。
 
 例如，支持用户级 Skills 目录的 Codex 环境可采用：
 
@@ -197,7 +197,7 @@ study/
     └── study_quiz_check.py  # 测验数据结构检查
 ```
 
-完整规则见 [`study/SKILL.md`](study/SKILL.md)，Windows 运行命令与产物交付协议见 [`study/runtime/README.md`](study/runtime/README.md)。首次运行流程见 [`first-use.md`](study/references/first-use.md)，资料支持情况见 [`source-adapters.md`](study/references/source-adapters.md)。
+完整规则见 [`study/SKILL.md`](study/SKILL.md)，宿主原生架构与 Windows 本地验证工具见 [`study/runtime/README.md`](study/runtime/README.md)。首次运行流程见 [`first-use.md`](study/references/first-use.md)，资料支持情况见 [`source-adapters.md`](study/references/source-adapters.md)。
 
 ## 设计原则与当前边界
 
@@ -205,9 +205,9 @@ study/
 - **以证据更新档案：** 教学进度、个人自评和实际理解分别记录；阶段总结由测验及学习证据支持。
 - **先补必要基础：** 按个人情况调整讲法，同时保留原资料的重要知识结构。
 - **可恢复、可检查：** 提供本地状态和 Python 校验脚本；结构校验不等于教学质量已验证。
-- **依赖运行环境：** 网页读取、视频字幕、HTML 交互和文件持久化由宿主能力决定。
+- **依赖宿主能力：** 使用 Codex/DSH 现有模型与网页、文件、浏览器能力；HTML 交互和文件持久化按宿主实际支持情况执行。
 
-本项目当前为 **V6.1**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；仓库的许可信息见 [`LICENSE`](LICENSE)。
+本项目当前为 **V6.2**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；仓库的许可信息见 [`LICENSE`](LICENSE)。
 
 ---
 
