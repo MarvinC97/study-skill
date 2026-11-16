@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Study V6 user command operations. Live generation requires configured model API.
-A verified source/plan plus per-artifact reviews and file records are mandatory.
+"""Study host-native command operations. Codex/DSH authors content with its connected model.
+Python only validates source, persisted course, reviewed artifacts, and delivery.
 """
 from __future__ import annotations
 import argparse,html,json,hashlib,re,sys,shutil,os
@@ -101,9 +101,11 @@ def next_unit(ws):
   if len(points)>1:
     coherence=rev.get("unit_coherence",{})
     if (coherence.get("coherent") is not True or
+        coherence.get("shared_case_ok") is not True or
+        coherence.get("cognitive_load_ok") is not True or
         set(coherence.get("checked_lp_ids",[]))!=set(ids) or
         not isinstance(coherence.get("reason"),str) or len(coherence["reason"].strip())<45):
-      raise v5.GateError('G4 grouped Study Unit requires reviewer-confirmed shared explanation and LP coverage')
+      raise v5.GateError('G4 Study Unit needs reviewer-confirmed shared example, cognitive load and LP coverage')
   # The existing host-agent review receipt was verified against this exact draft.
   prev='overview.html' if index==0 else plan['pages'][index-1]['page_id']+'.html'
   nxt='overview.html'
