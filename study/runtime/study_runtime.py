@@ -208,15 +208,29 @@ def validate_plan(ws):
                 if not qc.substantial(p.get("learning_objective"),20):
                     issues.append(f"{p.get('page_id')}: grouped LPs require one shared learning objective")
         elif plan.get("mode")=="study":
-            # Standard Study teaches a coherent cluster of atomic LPs in ONE Unit/page.
-            # Source facts and mastery IDs remain individually traceable.
+            # A Unit is a complete mental model with several *distinct* LP IDs.
+            # Defaults: 2–4 related LPs; allow 1 or up to 6 light LPs.
             if len(refs)>6:
                 issues.append(f"{p.get('page_id')}: standard Unit exceeds six LPs; split by cognitive load")
             if len(refs)>1:
                 if not qc.substantial(p.get("learning_objective"),20):
                     issues.append(f"{p.get('page_id')}: grouped Study Unit needs a shared learning objective")
                 if not qc.substantial(p.get("grouping_rationale"),35):
-                    issues.append(f"{p.get('page_id')}: grouped Study Unit needs a reason the LPs belong together")
+                    issues.append(f"{p.get('page_id')}: grouped Study Unit needs a source-grounded grouping rationale")
+                if p.get("grouping_relation") not in qc.STUDY_RELATIONS:
+                    issues.append(f"{p.get('page_id')}: standard Unit lacks an explicit causal/comparison/workflow relationship")
+                if not qc.substantial(p.get("shared_case"),35):
+                    issues.append(f"{p.get('page_id')}: standard Unit must share one worked scenario")
+                lpmap={x.get("lp_id"):x for x in pts}
+                kinds=[lpmap[x].get("kind","mechanism") for x in refs if x in lpmap]
+                weight=sum(qc.STUDY_LOAD.get(x,2) for x in kinds)
+                if weight>8:
+                    issues.append(f"{p.get('page_id')}: combined learning load {weight} exceeds 8; split this Unit")
+                heavy=sum(x in qc.STUDY_HEAVY_KINDS for x in kinds)
+                if heavy>1:
+                    issues.append(f"{p.get('page_id')}: multiple heavyweight algorithms/experiments/cases require separate Units")
+                elif heavy and len(refs)>3:
+                    issues.append(f"{p.get('page_id')}: heavyweight LP can join at most two contextual LPs")
         else:
             issues.append("unknown Study mode; expected study or study-d")
     if set(lpids)-set(mapped_pages):issues.append("unassigned LPs: "+str(set(lpids)-set(mapped_pages)))
