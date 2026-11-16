@@ -14,6 +14,14 @@ ATOMIC_KINDS={"concept","mechanism","decision","algorithm","comparison",
 REVIEW_DIMENSIONS=("mechanism","causal_reasoning","worked_example",
                    "conditions_and_limits","assessment_fairness","source_fidelity")
 EXPERIMENT_FACETS=("purpose","setup","controls","results","limitations")
+STUDY_RELATIONS=frozenset(("causal_chain","shared_mechanism",
+    "prerequisite_bridge","comparison","same_task_workflow"))
+# A source/plan heuristic to limit overpacked Units. Page content and source
+# correctness still require an actual reviewer; no fixed target LP count.
+STUDY_LOAD={"concept":1,"boundary":1,"reflection":1,
+    "mechanism":2,"decision":2,"comparison":2,
+    "algorithm":3,"experiment":3,"failure_case":3}
+STUDY_HEAVY_KINDS=frozenset(("algorithm","experiment","failure_case"))
 
 
 def clean(value):
@@ -291,9 +299,11 @@ def validate_study_group_review(review,plan):
         pid=audit.get("page_id");page=grouped.get(pid)
         if not page:issues.append("G2 unknown grouped Unit "+str(pid));continue
         if (audit.get("coherent") is not True or
+            audit.get("shared_case_ok") is not True or
+            audit.get("cognitive_load_ok") is not True or
             set(audit.get("checked_lp_ids",[]))!=set(page["lp_ids"]) or
             not substantial(audit.get("reason"),45)):
-            issues.append("G2 grouped Unit needs source-grounded independent coherence review "+pid)
+            issues.append("G2 grouped Unit needs independent relationship, example and cognitive-load review "+pid)
     return issues
 
 
