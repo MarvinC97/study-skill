@@ -87,8 +87,9 @@ def content_review(plan,source,drafts):
                  "source_quote":f["source_quote"],
                  "draft_quote":quote,"grounded":True,"explained":True,
                  "reason":CONTENT_REASON} for f in fids]
-        dim=[{"dimension":k,"passed":True,"draft_quote":quote,"reason":CONTENT_REASON}
-             for k in qc.REVIEW_DIMENSIONS]
+        dim=[{"dimension":k,"passed":True,
+              "draft_quote":next(text for text in qc.dimension_text(obj,k) if qc.substantial(text,35)),
+              "reason":CONTENT_REASON} for k in qc.REVIEW_DIMENSIONS]
         details.append({"page_id":page["page_id"],"approved":True,"issues":[],
              "checked_fact_ids":[f["id"] for f in fids],
              "draft_sha256":agent.digest(obj),"fact_audits":audits,
