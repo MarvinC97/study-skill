@@ -82,8 +82,9 @@ def accept_plan_review(ws,review_file):
     cachepath=Path(ws)/"reviews"/"plan-review-cache.json"
     cache=obj(cachepath) or {"batches":{},"pages":{}}
     audit_issues=qc.validate_plan_review_audits(rev,scope,plan,cache)
+    audit_issues+=qc.validate_study_group_review(rev,plan)
     if audit_issues:
-        raise host.GateError("G2 independent atomicity/source coverage audit failed: "+str(audit_issues[:12]))
+        raise host.GateError("G2 independent plan and Unit-coherence review failed: "+str(audit_issues[:12]))
     # Cache only VERIFIED reviewer batches; no model calls or repeat review
     # for unchanged source/LP and grouped-page scopes.
     if rev.get("review_contract")=="g2-batched-v3":
@@ -96,6 +97,7 @@ def accept_plan_review(ws,review_file):
       "reviewer_context_id":rev["reviewer_context_id"],"plan_sha256":digest(plan),
       "source_sha256":src["source_sha256"],"checked_span_ids":sorted(required),
       "quality_contract":rev.get("review_contract","deep-semantic-v2"),
+      "unit_group_audits":rev.get("unit_group_audits",[]),
       "quality_audits_validated":True,
       "reused_batches":len(rev.get("reuse_batch_sha256",[])),
       "reviewed_batches":len(rev.get("batch_audits",[])),
@@ -143,7 +145,7 @@ def accept_content_review(ws,review_file):
         got.add(pid);page=expected[pid]
         draft=need(ws,"drafts/"+pid+".json")
         relevant=[points[x] for x in page["lp_ids"]]
-        errors=host.validate_content_data(relevant,draft)
+        errors=host.validate_content_data(relevant,draft,mode=plan.get("mode","study-d"))
         if errors:raise host.GateError("invalid reviewed draft "+pid+": "+str(errors))
         required={f["id"] for p in relevant for f in p["required_facts"]}
         if set(entry.get("checked_fact_ids",[]))!=required:
@@ -426,7 +428,8 @@ def main():
             if not pg:raise host.GateError("unknown page")
             points={x["lp_id"]:x for x in plan["points"]}
             issues=host.validate_content_data([points[x] for x in pg["lp_ids"]],
-                                              need(w,"drafts/"+a.page_id+".json"))
+                                              need(w,"drafts/"+a.page_id+".json"),
+                                              mode=plan.get("mode","study-d"))
             if issues:raise host.GateError(str(issues))
             result={"page_id":a.page_id,"valid":True,"draft_sha256":digest(need(w,"drafts/"+a.page_id+".json"))}
         elif a.command=="render":result=render(w)
