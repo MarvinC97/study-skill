@@ -121,12 +121,25 @@ def accept_content_review(ws,review_file):
         raise host.GateError("review source/plan hash mismatch")
     expected={p["page_id"]:p for p in plan["pages"]}
     points={p["lp_id"]:p for p in plan["points"]}
-    all_ids=set();page_receipts=[];got=set()
-    for entry in rev.get("pages",[]):
+    cachepath=Path(ws)/"reviews"/"content-review-cache.json"
+    cache=obj(cachepath) or {"pages":{}}
+    compact=rev.get("review_contract")=="g4-compact-v3"
+    incoming=list(rev.get("pages",[]))
+    if compact:
+        reusable=rev.get("reuse_page_sha256",[])
+        if not isinstance(reusable,list):raise host.GateError("invalid cached page list")
+        for token in reusable:
+            old=cache.get("pages",{}).get(token)
+            if not isinstance(old,dict):
+                raise host.GateError("G4 missing previously accepted page review: "+str(token))
+            incoming.append(old)
+    all_ids=set();page_receipts=[];got=set();new_cache=[]
+    for entry in incoming:
+        if not isinstance(entry,dict):raise host.GateError("malformed content review entry")
         pid=entry.get("page_id")
-        if pid not in expected or pid in got:raise host.GateError("unknown or repeated reviewed page: "+str(pid))
-        got.add(pid)
-        page=expected[pid];draftfile=Path(ws)/"drafts"/(pid+".json")
+        if pid not in expected or pid in got:
+            raise host.GateError("unknown or repeated reviewed page: "+str(pid))
+        got.add(pid);page=expected[pid]
         draft=need(ws,"drafts/"+pid+".json")
         relevant=[points[x] for x in page["lp_ids"]]
         errors=host.validate_content_data(relevant,draft)
@@ -139,20 +152,41 @@ def accept_content_review(ws,review_file):
             raise host.GateError("review is stale for "+pid)
         if entry.get("approved") is not True or entry.get("issues"):
             raise host.GateError("reviewer rejected content of "+pid)
+        review_scope=qc.content_page_scope(src,plan,page,draft)
+        if compact and (entry.get("review_contract")!="g4-compact-v3"
+                        or entry.get("review_scope_sha256")!=review_scope):
+            raise host.GateError("G4 page review scope mismatch "+pid)
         quality=qc.validate_content_review_audits(entry,relevant,draft,src)
         if quality:
             raise host.GateError("G4 shallow/ungrounded lesson rejected "+pid+": "+str(quality[:14]))
-        page_receipts.append({"page_id":pid,"approved":True,"issues":[],
+        receipt={"page_id":pid,"approved":True,"issues":[],
           "checked_fact_ids":sorted(required),"draft_sha256":dsha,
-          "fact_audits":entry["fact_audits"],"quality_dimensions":entry["quality_dimensions"],
-          "quality_contract":"deep-semantic-v2","quality_audits_validated":True})
+          "quality_dimensions":entry["quality_dimensions"],
+          "quality_contract":"compact-semantic-v3" if compact else "deep-semantic-v2",
+          "quality_audits_validated":True}
+        if compact:
+            receipt.update({"review_contract":"g4-compact-v3",
+                 "review_scope_sha256":review_scope,
+                 "fact_checks":entry["fact_checks"],"risk_audits":entry.get("risk_audits",[])})
+            new_cache.append(receipt)
+        else:
+            receipt["fact_audits"]=entry["fact_audits"]
+        page_receipts.append(receipt)
         all_ids.update(required)
-    if got!=set(expected):raise host.GateError("content review lacks pages: "+str(set(expected)-got))
+    if got!=set(expected):
+        raise host.GateError("content review lacks pages: "+str(set(expected)-got))
     result={"approved":True,"pages":page_receipts,"source_sha256":src["source_sha256"],
       "plan_sha256":digest(plan),"reviewer_context_id":rev["reviewer_context_id"],
-      "quality_contract":"deep-semantic-v2","quality_audits_validated":True}
+      "quality_contract":"compact-semantic-v3" if compact else "deep-semantic-v2",
+      "quality_audits_validated":True,
+      "reused_pages":len(rev.get("reuse_page_sha256",[])) if compact else 0}
     host.atomic_json(Path(ws)/"reviews"/"content-review.json",result)
-    return {"reviewed":True,"pages":len(page_receipts),"checked_fact_ids":len(all_ids)}
+    if compact:
+        for item in new_cache:
+            cache["pages"][item["review_scope_sha256"]]=item
+        host.atomic_json(cachepath,cache)
+    return {"reviewed":True,"pages":len(page_receipts),
+            "checked_fact_ids":len(all_ids),"reused_pages":result["reused_pages"]}
 
 def check_review_integrity(ws):
     plan=need(ws,"frozen-plan.json");review=need(ws,"reviews/content-review.json")
