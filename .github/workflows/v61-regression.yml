@@ -24,5 +24,13 @@ jobs:
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_agent_integration.py' -v
       - name: Strict G2-G6 negative quality acceptance tests
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_quality_gates.py' -v
+      - name: Install deterministic browser QA dependencies
+        run: |
+          python -m pip install playwright pyyaml beautifulsoup4
+          python -m playwright install --with-deps chromium
+      - name: Actual Chromium QA of generated fixture HTML
+        run: python -m unittest discover -s study/runtime/tests -p 'test_runtime.py' -v
+      - name: Skill metadata and reference integrity
+        run: python study/tests/validate_skill.py
       - name: Reject reintroduction of standalone provider requirements
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_no_provider_api.py' -v
