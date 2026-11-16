@@ -5,7 +5,7 @@
 <p align="center"><strong>Turn fast-changing AI knowledge into a personal, evidence-based learning path.</strong></p>
 <p align="center"><a href="README.md">简体中文</a> · <a href="README.en.md">English</a> · <a href="#quick-start">Quick Start</a></p>
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-V3.5-2563eb" />
+  <img alt="Version" src="https://img.shields.io/badge/version-V6.1-2563eb" />
   <img alt="Type" src="https://img.shields.io/badge/type-Agent%20Skill-7c3aed" />
   <img alt="Inputs" src="https://img.shields.io/badge/sources-Books%20%7C%20GitHub%20%7C%20Videos-f59e0b" />
 </p>
@@ -102,6 +102,8 @@ See [`study/SKILL.md`](study/SKILL.md), [`first-use.md`](study/references/first-
 ## Learner data and safeguards
 
 The default learner data root, where persistent file operations are allowed, is `~/Study/learners/<english-name>/`. A `learner-profile.json` carries background and summarized learning evidence, while each course's `study-state.json` records its own progress and authoritative assessment evidence. Keep personal histories outside the public repository. Skill installation does not itself sync learner data across devices.
+
+For local Runtime commands, host delivery confirmation, and quiz answer persistence, see [`study/runtime/README.md`](study/runtime/README.md).
 
 Source-grounded teaching, conservative assessment, stable LP identifiers and resumable state are core design requirements. The bundled Python scripts validate structural contracts; educational correctness and fully rendered interactions require additional review.
 
