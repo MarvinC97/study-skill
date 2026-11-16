@@ -37,7 +37,7 @@ class ContractTests(unittest.TestCase):
     def test_seven_pages_overpacked_plan_rejected(self):
         p=self.plan();p['pages']=[{'page_id':'P001','title':'Too broad','lp_ids':[x['lp_id'] for x in p['points']]}]
         m.atomic_json(self.w/'plan.json',p);report=m.validate_plan(self.w)
-        self.assertEqual(report['status'],'fail');self.assertTrue(any('more than 2' in x or 'deep page merges' in x for x in report['issues']))
+        self.assertEqual(report['status'],'fail');self.assertTrue(any('>4 LPs' in x or 'grouped LPs require' in x for x in report['issues']))
 
     def test_lp_swallowing_large_span_group_is_rejected(self):
         p=self.plan()
