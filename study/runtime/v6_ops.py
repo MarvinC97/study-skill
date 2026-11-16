@@ -75,6 +75,13 @@ def next_unit(ws):
   w=Path(ws);plan,source=need_plan(w)
   if plan['mode']!='study':raise v5.GateError('/study-n applies to standard Unit path. Deep pages use /study-d delivery queue.')
   index=int(v5.state(w).get('current_unit',0))
+  pending=obj(w/'unit-delivery-pending.json')
+  if pending:
+    file=Path(pending['file'])
+    if pending.get('unit')!=index+1 or not file.is_file() or v5.sha(file.read_bytes())!=pending.get('sha256'):
+      raise v5.GateError('pending Unit delivery is inconsistent; inspect before continuing')
+    return {'file':str(file),'unit':pending['unit'],'total':len(plan['pages']),
+            'awaiting_confirmation':True,'sha256':pending['sha256'],'reused':True}
   if index>=len(plan['pages']):return {'finished':True,'units':len(plan['pages'])}
   pg=plan['pages'][index];ids=pg['lp_ids'];points=[pmap(plan)[x] for x in ids]
   # Source frozen per unit; all content and reviews must be reproducible from immutable source/plan.
@@ -89,11 +96,10 @@ def next_unit(ws):
   rev=independent_review(w,'unit',ev,{'points':points,'draft':draft},required)
   v5.atomic_json(w/'reviews'/f'{pg["page_id"]}-unit-review.json',rev)
   prev='overview.html' if index==0 else plan['pages'][index-1]['page_id']+'.html'
-  nxt='overview.html' # Unpublished future Unit must not appear as broken page link.
+  nxt='overview.html'
   pagehtml=v5.html_page(pg,points,draft,source,prev,nxt)
   dest=w/'published'/f'{pg["page_id"]}.html';v5.write_text(dest,pagehtml.replace('Study V5','Study V6'))
   if (w/'overview.html').exists():shutil.copy2(w/'overview.html',w/'published'/'overview.html')
-  # v5 checks all required facts as literal visible text, not only IDs.
   for pt in points:
     for fact in pt['required_facts']:
       if h(fact['text']) not in pagehtml or f'data-fact-id="{h(fact["id"])}"' not in pagehtml:
@@ -101,8 +107,36 @@ def next_unit(ws):
   try:qa=browser_check(dest,selectors=['[data-fact-id]','.card.check button','button.reveal'])
   except Exception:dest.unlink();raise
   receipt=record(w,'unit',dest,pg['title'],ids)
-  st=v5.state(w);st['current_unit']=index+1;v5.save(w,st)
-  return {'file':str(dest),'unit':index+1,'total':len(plan['pages']),'reviewed':True,'browser':qa,'artifact':receipt}
+  fingerprint=v5.sha(dest.read_bytes())
+  v5.atomic_json(w/'unit-delivery-pending.json',
+    {'file':str(dest.resolve()),'unit':index+1,'sha256':fingerprint,'page_id':pg['page_id']})
+  return {'file':str(dest.resolve()),'unit':index+1,'total':len(plan['pages']),
+          'reviewed':True,'browser':qa,'artifact':receipt,
+          'awaiting_confirmation':True,'sha256':fingerprint}
+
+
+def confirm_unit_delivery(ws,file):
+  """Commit progress only after the host actually presents the prepared page."""
+  w=Path(ws);candidate=Path(file).resolve()
+  receipt=obj(w/'unit-delivery-confirmed.json')
+  if receipt and receipt.get('file')==str(candidate):
+    if not candidate.is_file() or v5.sha(candidate.read_bytes())!=receipt['sha256']:
+      raise v5.GateError('confirmed Unit artifact changed')
+    return {'confirmed':True,'duplicate':True,'unit':receipt['unit'],'file':str(candidate)}
+  pending=obj(w/'unit-delivery-pending.json')
+  if not pending or pending.get('file')!=str(candidate):
+    raise v5.GateError('prepare /study-n and deliver the page before confirmation')
+  if not candidate.is_file() or v5.sha(candidate.read_bytes())!=pending['sha256']:
+    raise v5.GateError('pending Unit artifact missing or changed')
+  index=int(v5.state(w).get('current_unit',0))
+  if pending['unit']!=index+1:raise v5.GateError('pending Unit cursor drift')
+  # First update canonical learner course; recovery can restore Host cursor after a crash.
+  result=learners.mark_unit_delivered(w,pending['unit'],candidate)
+  state=v5.state(w);state['current_unit']=pending['unit'];v5.save(w,state)
+  v5.atomic_json(w/'unit-delivery-confirmed.json',pending)
+  (w/'unit-delivery-pending.json').unlink()
+  return {'confirmed':True,'duplicate':False,'unit':pending['unit'],
+          'file':str(candidate),'learner_state':result}
 
 def explanation(ws,topic):
   w=Path(ws);plan,source=need_plan(w);points=match(plan,topic)
@@ -293,18 +327,27 @@ def consolidate_existing(ws,topic):
 
 def main():
   p=argparse.ArgumentParser(description='Study V6 learning commands')
-  p.add_argument('command',choices=['study-n','study-e','study-q','study-c','study-m']);p.add_argument('--workspace',required=True);p.add_argument('--topic',default='')
+  p.add_argument('command',choices=['study-n','study-e','study-q','study-c','study-m','confirm-delivery','study-q-submit']);p.add_argument('--workspace',required=True);p.add_argument('--topic',default='')
+  p.add_argument('--file',help='Exact prepared HTML for confirm-delivery')
+  p.add_argument('--answers-file',help='Learner-submitted JSON answers for study-q-submit')
   a=p.parse_args();w=Path(a.workspace).resolve()
   try:
     learners.recover(w)  # V3.5 authoritative course cursor and evidence, without advancing mastery.
     if a.command=='study-n':learners.require_ready(w)
-    fn={'study-n':lambda:next_unit(w),'study-e':lambda:explanation(w,a.topic),'study-q':lambda:quiz(w,a.topic),'study-c':lambda:consolidate_existing(w,a.topic),'study-m':lambda:knowledge_map(w)}[a.command]
-    result=fn()
-    if a.command=='study-n' and result.get('file'):
-      result['learner_state']=learners.mark_unit_delivered(w,result['unit'],result['file'])
-    elif a.command in ('study-e','study-q') and result.get('file'):
-      kind='explanation' if a.command=='study-e' else 'quiz'
-      result['learner_state']=learners.mark_artifact(w,kind,result['file'],a.topic)
+    if a.command=='confirm-delivery':
+      if not a.file:raise v5.GateError('confirm-delivery requires --file')
+      result=confirm_unit_delivery(w,a.file)
+    elif a.command=='study-q-submit':
+      if not a.answers_file:raise v5.GateError('study-q-submit requires --answers-file')
+      result=submit_quiz(w,a.topic,a.answers_file)
+    else:
+      fn={'study-n':lambda:next_unit(w),'study-e':lambda:explanation(w,a.topic),
+          'study-q':lambda:quiz(w,a.topic),'study-c':lambda:consolidate_existing(w,a.topic),
+          'study-m':lambda:knowledge_map(w)}[a.command]
+      result=fn()
+      if a.command in ('study-e','study-q') and result.get('file'):
+        kind='explanation' if a.command=='study-e' else 'quiz'
+        result['learner_state']=learners.mark_artifact(w,kind,result['file'],a.topic)
     print(json.dumps({'ok':True,'result':result},ensure_ascii=False,indent=2))
   except Exception as e:print(json.dumps({'ok':False,'error':str(e)},ensure_ascii=False),file=sys.stderr);sys.exit(2)
 if __name__=='__main__':main()
