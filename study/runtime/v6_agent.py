@@ -7,12 +7,20 @@ connected host's existing agent/subagents. This CLI makes NO model API calls.
 from __future__ import annotations
 import argparse
 import json
+from datetime import datetime,timezone
 from pathlib import Path
 import study_runtime as host
 import v61_learner as learners
 
 def load(p):
     return host.read_json(p)
+
+def obj(path):
+    p=Path(path)
+    return host.read_json(p) if p.is_file() else None
+
+def stamp():
+    return datetime.now(timezone.utc).isoformat()
 
 def digest(data):
     return host.sha(json.dumps(data,sort_keys=True,ensure_ascii=False))
