@@ -79,12 +79,13 @@ deep outlines.
 
 Study-D uses the mandatory [G2–G6 quality contract](../references/quality-gates-v6.2.md).
 The host first builds the atomic source_inventory with one independent LP per
-deep learning page; maps original experiments and reflection questions; and
+teachable source item and up to four related LPs per coherent page; maps original
+experiments and reflection questions; and
 obtains a detailed isolated plan review before asking the learner to approve
 the outline. The lesson draft must include teaching_evidence with causal
 explanations, worked examples, conditions/limits, and per-fact justification.
 Source quotes remain in a separate HTML container, and do not satisfy teaching
-coverage. The independent reviewer must produce per-fact and per-dimension
+coverage. The independent reviewer uses batched G2 checks and compact per-fact and per-dimension
 justifications tied to source and draft hashes.
 
 The checker records SOURCE_VERIFIED, PLAN_REVIEW_PASS,
@@ -113,7 +114,7 @@ The local deterministic Stage operations are:
 v6_agent.py:
   bind, ingest, plan-check, accept-plan-review, overview,
   approve-outline, freeze, draft-check, render, check-content,
-  accept-content-review, verify, publish, deliver-next,
+  accept-content-review, stage-next-page, verify, publish, deliver-next,
   confirm-delivery, hash-json, status
 
 v6_ops.py:
