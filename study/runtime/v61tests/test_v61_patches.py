@@ -67,7 +67,7 @@ class V61PatchTests(unittest.TestCase):
         self.assertTrue(duplicate['duplicate'])
         self.assertEqual(v5.next_delivery(deep)['index'],2)
         with self.assertRaises(v5.GateError):
-            v5.confirm_delivery(deep,published/'page1.html' if not (published/'page1.html').exists() else published/'index.html') if False else v5.confirm_delivery(deep,self.root/'wrong.html')
+            v5.confirm_delivery(deep,self.root/'wrong.html')
         (published/'page1.html').write_text('<h1>Changed</h1>',encoding='utf-8')
         with self.assertRaises(v5.GateError):v5.next_delivery(deep)
 
@@ -93,6 +93,22 @@ class V61PatchTests(unittest.TestCase):
             self.assertEqual(learners.course(self.ws)['navigation']['current_unit_index'],1)
             self.assertTrue(v6_ops.confirm_unit_delivery(self.ws,prepared['file'])['duplicate'])
             self.assertTrue(v6_ops.next_unit(self.ws)['finished'])
+
+    def test_interrupted_unit_confirmation_reconciles_from_canonical_evidence(self):
+        out=self.ws/'published'/'U001.html'
+        out.parent.mkdir(parents=True)
+        out.write_text('<html>Unit</html>',encoding='utf-8')
+        pending={'file':str(out.resolve()),'unit':1,'sha256':v5.sha(out.read_bytes()),'page_id':'U001'}
+        v5.atomic_json(self.ws/'unit-delivery-pending.json',pending)
+        learners.mark_unit_delivered(self.ws,1,out)
+        # Simulate interruption after learner state advanced, before Host and final receipt.
+        result=learners.recover(self.ws)
+        self.assertEqual(result['current_unit_index'],1)
+        confirmed=v6_ops.confirm_unit_delivery(self.ws,out)
+        self.assertEqual(confirmed['learner_state']['recovered'],True)
+        self.assertTrue((self.ws/'unit-delivery-confirmed.json').is_file())
+        self.assertFalse((self.ws/'unit-delivery-pending.json').exists())
+        self.assertTrue(v6_ops.confirm_unit_delivery(self.ws,out)['duplicate'])
 
     def test_quiz_submission_records_actual_reviewed_evidence_once(self):
         exam={'topic':'Training','questions':[{'id':'Q1','question':'Why?','answer':'Because it works',
