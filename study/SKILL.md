@@ -18,12 +18,20 @@ Keep this entry lightweight. V6.0 Agent Manager and G1–G6 Host remain the exec
 | User command | Contract | Local Runtime |
 |---|---|---|
 | `/study <source>` | Read full selected source, atomize Learning Points, review outline, deliver overview ONLY | `v6_agent.py run --mode study` |
-| `/study-n` | Advance exactly one Unit, preserving progress and requiring independent review and browser QA | `v6_ops.py study-n` |
+| `/study-n` | Advance exactly one Unit, preserving progress and requiring independent review and browser QA | `v6_ops.py study-n` (then host confirmation) |
 | `/study-e <topic>` | Re-explain current gap, with intuition, simple/Agent/engineering examples and return point | `v6_ops.py study-e --topic` |
 | `/study-d <topic>` | Complete LP inventory → frozen outline → one mechanism/decision/case per page → hidden microquestions → independent review → page-by-page delivery | `v6_agent.py run --mode study-d` |
 | `/study-q <topic>` | Entire 6–10-question (at least five) multi-angle exam; first HTML hides answer key | `v6_ops.py study-q --topic` |
 | `/study-c <topic>` | One expanded HTML of all GENERATED matching material, question answers, exam keys and feedback; fully visible core content | `v6_ops.py study-c --topic` |
 | `/study-m` | Source-grounded Learning Point/Unit map, relations and progress | `v6_ops.py study-m` |
+
+## V6.1 host handoff (mandatory for all deliveries)
+
+- A generated or reviewed HTML file is **prepared**, not yet delivered. After the host makes the exact file accessible in a learner-facing response, call `runtime/v6_ops.py confirm-delivery --workspace WORKSPACE --file FILE` for standard Units, explanations and exams.
+- Deep module pages use `runtime/v6_agent.py deliver-next --workspace DEEP_WORKSPACE` to prepare **one** pending HTML, and `runtime/v6_agent.py confirm-delivery --workspace DEEP_WORKSPACE --file FILE` only after the host presents that exact page. Preparing the same page again before confirmation is idempotent.
+- Only confirmed delivery advances the Unit/deep page cursor. Never advance by file creation, review, a tool's successful return, or the existence of a generated link. A missing host delivery capability leaves the item pending. Hash mismatch blocks confirmation.
+- Capture actual learner exam answers from a learner message or explicitly supplied file and call `runtime/v6_ops.py study-q-submit --workspace WORKSPACE --topic TOPIC --answers-file ANSWERS.json`. The independent reviewer grades answers against the original source/rubrics and stores scoped evidence in the canonical course `study-state.json`. HTML selection/click alone cannot promote mastery.
+- Re-entering an existing Study-D branch preserves `next_page` and `main_return`. Pause/resolve an active branch explicitly before selecting another branch. Confirm one delivered page at a time.
 
 All commands accept a stable persistent `--workspace`. Keep `source.json`, `plan.json`, `reviews/`, `drafts/`, execution state and artifacts. The learner's profile and canonical course evidence live **outside** the Skill installation. Do not write personal learning records into public GitHub repositories.
 
