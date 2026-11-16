@@ -319,6 +319,12 @@ def validate_batch_plan_review(review,source,plan,cache=None):
             issues.append("G2 failed/stale batch review "+str(audit.get("batch_id")));continue
         if not substantial(audit.get("reason"),45):
             issues.append("G2 review batch needs a substantive explanation")
+        risk_subset={pid for pid in ids if by_lp[pid].get("kind") in
+                     ("algorithm","experiment","failure_case","boundary")}
+        risk_entries=audit.get("risk_audits",[])
+        if not isinstance(risk_entries,list):risk_entries=[]
+        if risk_subset!={a.get("lp_id") for a in risk_entries if isinstance(a,dict)}:
+            issues.append("G2 missing focused risk audits inside batch "+str(audit.get("batch_id")))
         included.extend(ids);seen_scopes.append(digest)
     reusable=review.get("reuse_batch_sha256",[])
     if not isinstance(reusable,list):reusable=[]
@@ -336,8 +342,13 @@ def validate_batch_plan_review(review,source,plan,cache=None):
         issues.append("G2 review batch receipt duplicated")
     risk={p["lp_id"] for p in plan["points"] if p.get("kind") in
           ("algorithm","experiment","failure_case","boundary")}
-    audits=review.get("risk_audits",[])
-    if not isinstance(audits,list):audits=[]
+    audits=list(review.get("risk_audits",[]) or [])
+    for item in supplied:
+        if isinstance(item,dict):audits.extend(item.get("risk_audits",[]))
+    for token in reusable:
+        prior=cache.get("batches",{}).get(token)
+        if isinstance(prior,dict):
+            audits.extend(prior.get("risk_audits",[]))
     if {a.get("lp_id") for a in audits if isinstance(a,dict)}!=risk or len(audits)!=len(risk):
         issues.append("G2 risk LP audits incomplete: "+str(sorted(risk)))
     for a in audits:
