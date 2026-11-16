@@ -1,7 +1,7 @@
 name: Study Host-Native regression
 on:
   push:
-    branches: [refactor/host-native-no-model-api]
+    branches: [fix/v6.2-g2-g6-quality-gates]
   pull_request:
     paths:
       - 'study/runtime/**'
@@ -22,5 +22,7 @@ jobs:
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_agent_host.py' -v
       - name: Standard Unit integration without external API
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_agent_integration.py' -v
+      - name: Strict G2-G6 negative quality acceptance tests
+        run: python -m unittest discover -s study/runtime/v6tests -p 'test_quality_gates.py' -v
       - name: Reject reintroduction of standalone provider requirements
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_no_provider_api.py' -v
