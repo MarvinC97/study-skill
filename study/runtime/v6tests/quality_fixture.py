@@ -15,6 +15,9 @@ def add_inventory(plan,source):
         iid=f"ITEM{i:04d}"
         sid=point["source_span_ids"][0]
         segment=next(x for x in source["segments"] if x["id"]==sid)
+        for fact in point.get("required_facts",[]):
+            source_fact_span=next(x for x in source["segments"] if x["id"]==fact["span_id"])
+            fact["source_quote"]=source_fact_span["text"][:90]
         point["inventory_ids"]=[iid]
         plan["source_inventory"].append({
           "id":iid,"kind":"mechanism","span_id":sid,
@@ -80,9 +83,8 @@ def content_review(plan,source,drafts):
         points=[lookup[x] for x in page["lp_ids"]]
         fids=[f for p in points for f in p["required_facts"]]
         quote=obj["teaching_evidence"][0]["fact_explanations"][0]["explanation"]
-        source_quotes={s["id"]:s["text"][:95] for s in source["segments"]}
         audits=[{"fact_id":f["id"],"source_span_id":f["span_id"],
-                 "source_quote":source_quotes[f["span_id"]],
+                 "source_quote":f["source_quote"],
                  "draft_quote":quote,"grounded":True,"explained":True,
                  "reason":CONTENT_REASON} for f in fids]
         dim=[{"dimension":k,"passed":True,"draft_quote":quote,"reason":CONTENT_REASON}
