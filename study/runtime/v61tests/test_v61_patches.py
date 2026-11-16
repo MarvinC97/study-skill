@@ -73,9 +73,9 @@ class V61PatchTests(unittest.TestCase):
 
     def test_unit_progress_only_advances_after_confirmation(self):
         draft={'title':'Unit','intro':'intro','sections':[],'mini_questions':[]}
+        v5.atomic_json(self.ws/'drafts'/'U001.json',draft)
         page='<html><p data-fact-id="F1">A necessary fact.</p></html>'
         with patch.object(v6_ops,'need_plan',return_value=(self.plan,v5.read_json(self.ws/'source.json'))), \
-             patch.object(v5,'draft_page',return_value=draft), \
              patch.object(v5,'validate_content_data',return_value=[]), \
              patch.object(v6_ops,'independent_review',return_value={'approved':True}), \
              patch.object(v5,'html_page',return_value=page), \
@@ -110,43 +110,66 @@ class V61PatchTests(unittest.TestCase):
         self.assertFalse((self.ws/'unit-delivery-pending.json').exists())
         self.assertTrue(v6_ops.confirm_unit_delivery(self.ws,out)['duplicate'])
 
+    def _grade_file(self,exam_path,answers_path,passed=True,assistance='independent',transfer=False):
+        data={'review_mode':'isolated_host_agent','reviewer_context_id':'reviewer-1',
+              'writer_context_id':'writer-1','exam_sha256':v5.sha(exam_path.read_bytes()),
+              'answer_sha256':v5.sha(answers_path.read_bytes()),
+              'grades':[{'question_id':'Q1','passed':passed,'reason':'Source-backed grade',
+                         'demonstrated_fact_ids':['F1'] if passed else [],
+                         'transfer_demonstrated':transfer}]}
+        p=self.root/'grade.json';v5.atomic_json(p,data);return p
+
     def test_quiz_submission_records_actual_reviewed_evidence_once(self):
         exam={'topic':'Training','questions':[{'id':'Q1','question':'Why?','answer':'Because it works',
             'rubric':'Explain the source-supported mechanism',
             'type':'reasoning','source_fact_ids':['F1']}]}
         (self.ws/'exams').mkdir()
-        v5.atomic_json(self.ws/'exams'/'training.json',exam)
+        exam_file=self.ws/'exams'/'training.json'
+        v5.atomic_json(exam_file,exam)
         answers=self.root/'actual-answers.json'
         v5.atomic_json(answers,{'topic':'Training','answers':[{'question_id':'Q1',
             'answer':'The mechanism follows A necessary fact.','assistance':'independent'}]})
-        graded={'passed':True,'reason':'Complete reasoning',
-                'demonstrated_fact_ids':['F1'],'transfer_demonstrated':False}
-        with patch.object(v6_ops,'need_plan',return_value=(self.plan,v5.read_json(self.ws/'source.json'))), \
-             patch.object(v5,'llm',return_value=graded) as model:
-            first=v6_ops.submit_quiz(self.ws,'Training',answers)
+        grade=self._grade_file(exam_file,answers)
+        with patch.object(v6_ops,'need_plan',return_value=(self.plan,v5.read_json(self.ws/'source.json'))):
+            first=v6_ops.submit_quiz(self.ws,'Training',answers,grade)
             self.assertEqual(first['graded'],1)
             evidence=learners.course(self.ws)['evidence']
             self.assertEqual(len(evidence),1)
             self.assertEqual(evidence[0]['actual_answer'],
                              'The mechanism follows A necessary fact.')
             self.assertEqual(learners.course(self.ws)['learning_points'][0]['learning_status'],'understood')
-            v6_ops.submit_quiz(self.ws,'Training',answers)
+            v6_ops.submit_quiz(self.ws,'Training',answers,grade)
             self.assertEqual(len(learners.course(self.ws)['evidence']),1)
-            self.assertEqual(model.call_count,2)
 
     def test_quiz_hinted_answers_remain_attempted(self):
         exam={'topic':'Training','questions':[{'id':'Q1','question':'Why?','answer':'x',
             'rubric':'Explain it','type':'transfer','source_fact_ids':['F1']}]}
         (self.ws/'exams').mkdir()
-        v5.atomic_json(self.ws/'exams'/'training.json',exam)
+        exam_file=self.ws/'exams'/'training.json'
+        v5.atomic_json(exam_file,exam)
         answers=self.root/'hinted.json'
         v5.atomic_json(answers,{'topic':'Training','answers':[{'question_id':'Q1',
             'answer':'copy from hint','assistance':'hinted'}]})
-        with patch.object(v6_ops,'need_plan',return_value=(self.plan,v5.read_json(self.ws/'source.json'))), \
-             patch.object(v5,'llm',return_value={'passed':True,'reason':'correct with hint',
-               'demonstrated_fact_ids':['F1'],'transfer_demonstrated':True}):
-            v6_ops.submit_quiz(self.ws,'Training',answers)
+        grade=self._grade_file(exam_file,answers,transfer=True)
+        with patch.object(v6_ops,'need_plan',return_value=(self.plan,v5.read_json(self.ws/'source.json'))):
+            v6_ops.submit_quiz(self.ws,'Training',answers,grade)
         self.assertEqual(learners.course(self.ws)['learning_points'][0]['learning_status'],'attempted')
+
+    def test_rejects_self_grader_and_missing_review(self):
+        exam={'topic':'Training','questions':[{'id':'Q1','question':'Why?','answer':'x',
+            'rubric':'Explain it','type':'reasoning','source_fact_ids':['F1']}]}
+        (self.ws/'exams').mkdir()
+        exam_file=self.ws/'exams'/'training.json'
+        v5.atomic_json(exam_file,exam)
+        answers=self.root/'answers.json'
+        v5.atomic_json(answers,{'topic':'Training','answers':[{'question_id':'Q1','answer':'I reasoned.'}]})
+        grade=self._grade_file(exam_file,answers)
+        with patch.object(v6_ops,'need_plan',return_value=(self.plan,v5.read_json(self.ws/'source.json'))):
+            with self.assertRaises(v5.GateError):
+                v6_ops.submit_quiz(self.ws,'Training',answers,None)
+            data=v5.read_json(grade);data['review_mode']='self_review';v5.atomic_json(grade,data)
+            with self.assertRaises(v5.GateError):
+                v6_ops.submit_quiz(self.ws,'Training',answers,grade)
 
 
 if __name__=='__main__':unittest.main()
