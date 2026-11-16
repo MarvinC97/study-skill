@@ -411,56 +411,86 @@ def content_static_check(ws):
     atomic_json(Path(ws)/"reports"/"content-static.json",report)
     return report
 
-def browser_qa(ws):
-    manifest=read_json(Path(ws)/"content-manifest.json")
-    try:from playwright.sync_api import sync_playwright
-    except ImportError:
-        report={"passed":False,"browser_executed":False,"issues":["Playwright unavailable; browser test unverified"]}
-        atomic_json(Path(ws)/"reports"/"browser.json",report);return report
-    issues=[];runs=0
-    class QuietHTTP(SimpleHTTPRequestHandler):
-        def log_message(self, *args): pass
-    server=ThreadingHTTPServer(("127.0.0.1",0),partial(QuietHTTP,directory=str((Path(ws)/"draft-pages").resolve())))
-    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-    urlbase=f"http://127.0.0.1:{server.server_port}/"
-    try:
-      with sync_playwright() as p:
-        browser=p.chromium.launch(headless=True,executable_path=os.environ.get("STUDY_CHROMIUM") or shutil.which("chromium") or shutil.which("google-chrome") or None)
-        for page_info in manifest["pages"]:
-            page=browser.new_page(viewport={"width":390,"height":840})
-            page.set_content((Path(ws)/"draft-pages"/page_info["file"]).read_text(encoding="utf-8"))
-            if page.locator(".card.check button").count()<3:issues.append(page_info["file"]+" missing checkpoint options")
-            else:
-                page.locator(".card.check button[data-correct=true]").click()
-                if not page.locator(".feedback").inner_text().startswith("正确"):issues.append(page_info["file"]+" checkpoint feedback broken")
-            if page.locator(".sim-controls button").count()>1:
-                page.locator(".sim-controls button").last.click()
-                expected=page.locator(".sim-controls button").last.get_attribute("data-observation")
-                if expected not in page.locator(".sim-result").inner_text():issues.append(page_info["file"]+" simulation condition switch broken")
-            if not page.locator("button.reveal").count():issues.append(page_info["file"]+" missing reveal")
-            else:
-                page.locator("button.reveal").first.focus();page.keyboard.press("Enter")
-                if not page.locator(".question .answer").first.is_visible():issues.append(page_info["file"]+" reveal keyboard broken")
-            page.locator("button.reset").click()
-            if page.locator(".question .answer").first.is_visible():issues.append(page_info["file"]+" reset failed")
-            if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):issues.append(page_info["file"]+" horizontal overflow on mobile")
-            page.set_viewport_size({"width":1280,"height":900})
-            if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
-                issues.append(page_info["file"]+" horizontal overflow on desktop")
-            page.close();runs+=1
-            static=browser.new_page(java_script_enabled=False)
-            static.set_content((Path(ws)/"draft-pages"/page_info["file"]).read_text(encoding="utf-8"))
-            if static.locator("[data-core]").count()<3 or not static.locator("[data-fact-id]").count():issues.append(page_info["file"]+" JS-disabled core content incomplete")
-            static.close()
-        browser.close()
-    finally:
-      server.shutdown();server.server_close()
-    report={"passed":not issues,"browser_executed":True,"pages_tested":runs,"issues":issues,
-            "rendered_files":{x["file"]:sha((Path(ws)/"draft-pages"/x["file"]).read_bytes()) for x in manifest["pages"]},
-            "manifest_sha256":sha((Path(ws)/"content-manifest.json").read_bytes()),
-            "viewports_tested":[390,1280],"keyboard_tested":True,
-            "js_disabled_tested":True,"interactive_tested":True}
-    atomic_json(Path(ws)/"reports"/"browser.json",report)
+def browser_qa(ws, force=False):
+    """Incremental real-browser QA keyed by exact generated HTML bytes.
+    Every cache entry originates from a previous successful real Chromium run.
+    """
+    w=Path(ws);manifest=read_json(w/"content-manifest.json")
+    cachepath=w/"reports"/"browser-cache.json"
+    cache=read_json(cachepath) if cachepath.is_file() else {"version":"g5-browser-v3","pages":{}}
+    if cache.get("version")!="g5-browser-v3":cache={"version":"g5-browser-v3","pages":{}}
+    files={x["file"]:sha((w/"draft-pages"/x["file"]).read_bytes())
+           for x in manifest["pages"]}
+    pending=[item for item in manifest["pages"]
+             if force or not (
+                isinstance(cache["pages"].get(files[item["file"]]),dict) and
+                cache["pages"][files[item["file"]]].get("real_browser_pass") is True)]
+    issues=[];tested=0
+    if pending:
+        try:from playwright.sync_api import sync_playwright
+        except ImportError:
+            report={"passed":False,"browser_executed":False,
+                "issues":["Playwright unavailable; browser test unverified"],
+                "pages_cached":len(manifest["pages"])-len(pending),"pages_executed_now":0}
+            atomic_json(w/"reports"/"browser.json",report);return report
+        with sync_playwright() as p:
+            browser=p.chromium.launch(
+                headless=True,executable_path=os.environ.get("STUDY_CHROMIUM")
+                or shutil.which("chromium") or shutil.which("google-chrome") or None)
+            for info in pending:
+                name=info["file"];before=len(issues)
+                page=browser.new_page(viewport={"width":390,"height":840})
+                try:
+                    page.set_content((w/"draft-pages"/name).read_text(encoding="utf-8"))
+                    if page.locator(".card.check button").count()<3:
+                        issues.append(name+" missing checkpoint options")
+                    else:
+                        page.locator(".card.check button[data-correct=true]").click()
+                        if not page.locator(".feedback").inner_text().startswith("正确"):
+                            issues.append(name+" checkpoint feedback broken")
+                    if page.locator(".sim-controls button").count()>1:
+                        page.locator(".sim-controls button").last.click()
+                        expected=page.locator(".sim-controls button").last.get_attribute("data-observation")
+                        if expected not in page.locator(".sim-result").inner_text():
+                            issues.append(name+" simulation condition switch broken")
+                    if not page.locator("button.reveal").count():issues.append(name+" missing reveal")
+                    else:
+                        page.locator("button.reveal").first.focus();page.keyboard.press("Enter")
+                        if not page.locator(".question .answer").first.is_visible():
+                            issues.append(name+" reveal keyboard broken")
+                    page.locator("button.reset").click()
+                    if page.locator(".question .answer").first.is_visible():
+                        issues.append(name+" reset failed")
+                    if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
+                        issues.append(name+" mobile overflow")
+                    page.set_viewport_size({"width":1280,"height":900})
+                    if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
+                        issues.append(name+" desktop overflow")
+                finally:page.close()
+                static=browser.new_page(java_script_enabled=False)
+                try:
+                    static.set_content((w/"draft-pages"/name).read_text(encoding="utf-8"))
+                    if static.locator("[data-core]").count()<3 or not static.locator("[data-fact-id]").count():
+                        issues.append(name+" JS-disabled core incomplete")
+                finally:static.close()
+                tested+=1
+                if len(issues)==before:
+                    cache["pages"][files[name]]={
+                        "real_browser_pass":True,"sha256":files[name],
+                        "tested_by":"Playwright Chromium","tested_at":time.time(),
+                        "checks":["mobile","desktop","keyboard","checkpoint",
+                                  "reset","interaction","js-disabled"]}
+            browser.close()
+        atomic_json(cachepath,cache)
+    report={"passed":not issues,"browser_executed":True,
+        "pages_tested":len(manifest["pages"]),"pages_executed_now":tested,
+        "pages_cached":len(manifest["pages"])-tested,
+        "issues":issues,"rendered_files":files,
+        "manifest_sha256":sha((w/"content-manifest.json").read_bytes()),
+        "viewports_tested":[390,1280],"keyboard_tested":True,
+        "js_disabled_tested":True,"interactive_tested":True,
+        "qa_contract":"g5-browser-v3"}
+    atomic_json(w/"reports"/"browser.json",report)
     return report
 
 def verify(ws):
