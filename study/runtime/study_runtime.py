@@ -24,6 +24,7 @@ import urllib.request
 import urllib.error
 import zipfile
 import xml.etree.ElementTree as ET
+import quality_contract as qc
 
 ROOT = Path(__file__).resolve().parent
 GATES = ("G1_SOURCE", "G2_PLAN", "G3_CONTENT", "G4_REVIEW", "G5_BROWSER", "G6_DELIVERY")
@@ -60,6 +61,10 @@ def save(ws, obj): atomic_json(Path(ws)/"state.json",obj)
 def record_gate(ws, gate, ok, issues=None, evidence=None):
     st=state(ws); st["gates"][gate]={"ok":bool(ok),"issues":issues or [],"evidence":str(evidence or "")}
     if ok: st["phase"]=gate
+    states={"G1_SOURCE":"SOURCE_VERIFIED","G2_PLAN":"PLAN_REVIEW_PASS",
+      "G3_CONTENT":"CONTENT_STRUCTURAL_PASS","G4_REVIEW":"CONTENT_REVIEW_PASS",
+      "G5_BROWSER":"BROWSER_PASS","G6_DELIVERY":"DELIVERY_CONFIRMED"}
+    st.setdefault("verification",{})[gate]=(states.get(gate,"PASS") if ok else "BLOCKED")
     save(ws,st)
     if not ok: raise GateError(f"{gate} BLOCKED: {'; '.join(issues or ['unknown'])}")
 
@@ -199,6 +204,8 @@ def validate_plan(ws):
     if set(mapped_pages)-set(lpids):issues.append("page references unknown LP")
     if len(mapped_pages)!=len(set(mapped_pages)):issues.append("LP duplicated on multiple primary pages")
     if not pages:issues.append("no pages")
+    scoped=dict(source,text=(Path(ws)/"source.txt").read_text(encoding="utf-8") if (Path(ws)/"source.txt").is_file() else "")
+    issues.extend(qc.validate_deep_inventory(scoped,plan))
     report={"status":"pass" if not issues else "fail","issues":issues,"sources":len(spans),"LPs":len(pts),"pages":len(pages),"source_coverage":len(spans&mapped)/len(spans) if spans else 0}
     atomic_json(Path(ws)/"reports"/"plan-static.json",report)
     return report
@@ -211,6 +218,8 @@ def freeze(ws):
     else:
         rev=read_json(rpath); p=read_json(Path(ws)/"plan.json")
         if not rev.get("approved"):issues.append("independent plan reviewer rejected")
+        if rev.get("quality_audits_validated") is not True:
+            issues.append("G2 atomicity/source semantic review receipt missing")
         if rev.get("plan_sha256")!=sha(json.dumps(p,sort_keys=True,ensure_ascii=False)):issues.append("plan changed after reviewer")
     plan=read_json(Path(ws)/"plan.json")
     src=read_json(Path(ws)/"source.json")
@@ -250,6 +259,7 @@ def validate_content_data(points,obj):
             issues.append("simulation states missing teaching fields")
     c=obj.get("checkpoint",{})
     if len(c.get("options",[]))<3 or c.get("correct_index") not in (0,1,2) or not c.get("feedback"):issues.append("checkpoint interaction invalid")
+    issues.extend(qc.validate_authored_teaching(points,obj))
     return issues
 
 def esc(s):return html.escape(str(s),quote=True)
@@ -264,8 +274,31 @@ def html_page(page,points,draft,source,prev_href,next_href):
     rows.append(f'<h1>{esc(draft["title"])}</h1><p class="lede" data-core="intro">{esc(draft["intro"])}</p>')
     for i,x in enumerate(draft["sections"],1):
         rows.append(f'<section class="card" data-core="section-{i}"><h2>{esc(x["heading"])}</h2><p>{esc(x["text"])}</p></section>')
-    # Facts remain explicitly visible even if JS disabled, preventing silent loss in rendering.
-    rows.append('<section class="card"><h2>原文核心要点与条件（完整保留）</h2>')
+    # Tutor-authored reasoning is separately rendered from verbatim source callouts.
+    # The source callout below can never satisfy the authored explanation contract.
+    for item in draft.get("teaching_evidence",[]):
+        rows.append(f'<section class="card" data-teaching-lp="{esc(item["lp_id"])}"><h2>机制与推导</h2>')
+        rows.append(f'<p data-core="mechanism">{esc(item["core_explanation"])}</p>')
+        rows.append('<h3>因果步骤</h3><ol>')
+        for step in item["causal_steps"]:rows.append(f'<li>{esc(step)}</li>')
+        rows.append('</ol><h3>完整示例</h3>')
+        example=item["worked_example"]
+        for key,label in (("scenario","场景"),("input","输入"),("outcome","结果"),("why","为什么")):
+            rows.append(f'<p><strong>{label}：</strong>{esc(example[key])}</p>')
+        rows.append('<ol>')
+        for step in example["reasoning_steps"]:rows.append(f'<li>{esc(step)}</li>')
+        rows.append('</ol><h3>适用条件</h3>')
+        for v in item["conditions"]:rows.append(f'<p>{esc(v)}</p>')
+        rows.append('<h3>限制与反例</h3>')
+        for v in item["limitations"]:rows.append(f'<p>{esc(v)}</p>')
+        for value in item.get("fact_explanations",[]):
+            rows.append(f'<p data-authored-fact-id="{esc(value["fact_id"])}">{esc(value["explanation"])}</p>')
+        if item.get("experiment"):
+            rows.append('<h3>实验设计与结论的边界</h3>')
+            for key in qc.EXPERIMENT_FACETS:
+                rows.append(f'<p><strong>{esc(key)}：</strong>{esc(item["experiment"][key])}</p>')
+        rows.append('</section>')
+    rows.append('<section class="card"><h2>原文事实引用（原文摘录，独立于讲解）</h2>')
     for p in points:
         for fact in p["required_facts"]:
             rows.append(f'<div class="fact" data-fact-id="{esc(fact["id"])}"><strong>{esc(fact["id"])}</strong> · {esc(fact["text"])} <small>({esc(fact["span_id"])})</small></div>')
@@ -316,7 +349,7 @@ def build_pages(ws, only_missing=True):
         prev="index.html" if i==0 else pages[i-1]["page_id"]+".html"
         nxt="index.html" if i==len(pages)-1 else pages[i+1]["page_id"]+".html"
         h=html_page(page,points,draft,source,prev,nxt)
-        write_text(out/pn,h); contents.append({"page_id":page["page_id"],"file":pn,"lp_ids":page["lp_ids"],"draft_sha256":sha(json.dumps(draft,ensure_ascii=False,sort_keys=True))})
+        write_text(out/pn,h); contents.append({"page_id":page["page_id"],"file":pn,"lp_ids":page["lp_ids"],"draft_sha256":sha(json.dumps(draft,ensure_ascii=False,sort_keys=True)), "rendered_sha256":sha(h)})
     idx=['<h1>Study V5 · 深度学习目录</h1><p>按知识依赖逐页阅读。每页包含完整解释、隐藏小问题和独立 Checkpoint。</p>']
     for p in pages:idx.append(f'<div class="card"><a href="{esc(p["page_id"])}.html">{esc(p["page_id"])} · {esc(p["title"])}</a></div>')
     write_text(out/"index.html",'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+CSS+'</style><main>'+"".join(idx)+'</main></html>')
@@ -331,15 +364,32 @@ def content_static_check(ws):
         page=pages_dir/info["file"]
         if not page.exists():issues.append("missing "+str(page));continue
         h=page.read_text(encoding="utf-8")
+        draftpath=Path(ws)/"drafts"/(info["page_id"]+".json")
+        if not draftpath.is_file():issues.append("missing reviewed draft for "+info["page_id"]);continue
+        draft=read_json(draftpath)
+        related=[pmap[lp] for lp in info["lp_ids"]]
+        issues.extend(info["file"]+": "+reason for reason in validate_content_data(related,draft))
+        if sha(json.dumps(draft,ensure_ascii=False,sort_keys=True))!=info.get("draft_sha256"):
+            issues.append(info["file"]+" source draft changed since HTML rendering")
+        if info.get("rendered_sha256") and sha(page.read_bytes())!=info["rendered_sha256"]:
+            issues.append(info["file"]+" HTML bytes changed since rendering")
+        for text in qc.authored_text(draft):
+            if qc.substantial(text,35) and esc(text) not in h:
+                issues.append(info["file"]+" authored explanatory text absent from HTML")
         for id in info["lp_ids"]:
+            if f'data-teaching-lp="{esc(id)}"' not in h:
+                issues.append(info["file"]+" missing tutor-authored mechanism for "+id)
             for fact in pmap[id]["required_facts"]:
-                if f'data-fact-id="{esc(fact["id"])}"' not in h: issues.append(f"{info['file']} missing rendered {fact['id']}")
-                if esc(fact["text"]) not in h:issues.append(f"{info['file']} lost fact text {fact['id']}")
+                if f'data-authored-fact-id="{esc(fact["id"])}"' not in h:
+                    issues.append(f"{info['file']} missing authored explanation for {fact['id']}")
+                if f'data-fact-id="{esc(fact["id"])}"' not in h: issues.append(f"{info['file']} missing source quote {fact['id']}")
+                if esc(fact["text"]) not in h:issues.append(f"{info['file']} lost source fact {fact['id']}")
         if 'class="check"' not in h and 'class="card check"' not in h:issues.append(info["file"]+" missing checkpoint")
         if 'class="reveal"' not in h:issues.append(info["file"]+" missing interactive questions")
         for link in re.findall(r'href="([^"]+)"',h):
             if link.endswith('.html') and not (pages_dir/link).exists():issues.append(info["file"]+" broken link "+link)
     report={"status":"pass" if not issues else "fail","issues":issues,"page_count":len(manifest["pages"])}
+    report["manifest_sha256"]=sha((Path(ws)/"content-manifest.json").read_bytes())
     atomic_json(Path(ws)/"reports"/"content-static.json",report)
     return report
 
@@ -376,6 +426,9 @@ def browser_qa(ws):
             page.locator("button.reset").click()
             if page.locator(".question .answer").first.is_visible():issues.append(page_info["file"]+" reset failed")
             if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):issues.append(page_info["file"]+" horizontal overflow on mobile")
+            page.set_viewport_size({"width":1280,"height":900})
+            if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
+                issues.append(page_info["file"]+" horizontal overflow on desktop")
             page.close();runs+=1
             static=browser.new_page(java_script_enabled=False)
             static.set_content((Path(ws)/"draft-pages"/page_info["file"]).read_text(encoding="utf-8"))
@@ -384,7 +437,11 @@ def browser_qa(ws):
         browser.close()
     finally:
       server.shutdown();server.server_close()
-    report={"passed":not issues,"browser_executed":True,"pages_tested":runs,"issues":issues}
+    report={"passed":not issues,"browser_executed":True,"pages_tested":runs,"issues":issues,
+            "rendered_files":{x["file"]:sha((Path(ws)/"draft-pages"/x["file"]).read_bytes()) for x in manifest["pages"]},
+            "manifest_sha256":sha((Path(ws)/"content-manifest.json").read_bytes()),
+            "viewports_tested":[390,1280],"keyboard_tested":True,
+            "js_disabled_tested":True,"interactive_tested":True}
     atomic_json(Path(ws)/"reports"/"browser.json",report)
     return report
 
@@ -397,25 +454,73 @@ def verify(ws):
     if not revpath.exists():record_gate(ws,"G4_REVIEW",False,["independent content review missing"])
     rev=read_json(revpath)
     if not rev.get("approved") or any(x.get("issues") for x in rev.get("pages",[])):record_gate(ws,"G4_REVIEW",False,["independent content review rejected"]+[str(x) for x in rev.get("pages",[]) if not x.get("approved")][:5])
+    plan=read_json(Path(ws)/"frozen-plan.json");source=read_json(Path(ws)/"source.json")
+    lookup={p["lp_id"]:p for p in plan["points"]}
+    page_map={p["page_id"]:p for p in plan["pages"]}
+    if rev.get("quality_audits_validated") is not True or len(rev.get("pages",[]))!=len(page_map):
+        record_gate(ws,"G4_REVIEW",False,["semantic reviewer receipt missing or incomplete"])
+    for item in rev["pages"]:
+        if item.get("quality_audits_validated") is not True or item.get("page_id") not in page_map:
+            record_gate(ws,"G4_REVIEW",False,["per-page semantic audit absent"])
+        draft=read_json(Path(ws)/"drafts"/(item["page_id"]+".json"))
+        relevant=[lookup[lp] for lp in page_map[item["page_id"]]["lp_ids"]]
+        semantic=qc.validate_content_review_audits(item,relevant,draft,source)
+        if semantic:record_gate(ws,"G4_REVIEW",False,semantic)
+    # Ensure the content under review has not changed after a reviewer attested.
+    for item in rev.get("pages",[]):
+        draft=read_json(Path(ws)/"drafts"/(item["page_id"]+".json"))
+        if sha(json.dumps(draft,sort_keys=True,ensure_ascii=False))!=item.get("draft_sha256"):
+            record_gate(ws,"G4_REVIEW",False,["stale content review for "+item["page_id"]])
     record_gate(ws,"G4_REVIEW",True,evidence=revpath)
     b=browser_qa(ws)
-    if not b.get("passed"):record_gate(ws,"G5_BROWSER",False,b.get("issues"))
+    if not b.get("passed") or b.get("browser_executed") is not True:
+        record_gate(ws,"G5_BROWSER",False,b.get("issues") or ["real browser QA not executed"])
+    manifest=read_json(Path(ws)/"content-manifest.json")
+    if b.get("viewports_tested")!=[390,1280] or any(
+       b.get(k) is not True for k in ("keyboard_tested","js_disabled_tested","interactive_tested")):
+        record_gate(ws,"G5_BROWSER",False,["interactive/mobile/desktop/keyboard/JS-off checks incomplete"])
+    if b.get("manifest_sha256")!=sha((Path(ws)/"content-manifest.json").read_bytes()) or any(
+       b.get("rendered_files",{}).get(x["file"])!=sha((Path(ws)/"draft-pages"/x["file"]).read_bytes())
+       for x in manifest["pages"]):
+        record_gate(ws,"G5_BROWSER",False,["browser receipt does not bind exact generated HTML bytes"])
     record_gate(ws,"G5_BROWSER",True,evidence=Path(ws)/"reports"/"browser.json")
 
 def publish(ws):
-    st=state(ws);missing=[g for g in GATES[:-1] if not st["gates"].get(g,{}).get("ok")]
-    if missing:record_gate(ws,"G6_DELIVERY",False,["missing gates: "+", ".join(missing)])
-    dst=Path(ws)/"published";dst.mkdir(exist_ok=True)
-    for f in (Path(ws)/"draft-pages").glob("*.html"):shutil.copy2(f,dst/f.name)
-    manifest=read_json(Path(ws)/"content-manifest.json")
-    for f in ["index.html"]+[item["file"] for item in manifest["pages"]]:
-        if not (dst/f).exists():record_gate(ws,"G6_DELIVERY",False,["missing output "+f])
+    """Publish verified bytes; G6 remains PREPARED until the learner sees the full queue."""
     st=state(ws)
-    st["artifacts"]=[{"file":str((dst/p).resolve()),"verified":True} for p in ["index.html"]+[v["file"] for v in manifest["pages"]]]
+    missing=[g for g in GATES[:-1] if not st["gates"].get(g,{}).get("ok")]
+    if missing:record_gate(ws,"G6_DELIVERY",False,["missing gates: "+", ".join(missing)])
+    # Recheck the current reviewed draft and page structure before publication.
+    report=content_static_check(ws)
+    if report["issues"]:record_gate(ws,"G3_CONTENT",False,report["issues"])
+    source=read_json(Path(ws)/"source.json")
+    plan=read_json(Path(ws)/"frozen-plan.json")
+    review=read_json(Path(ws)/"reviews"/"content-review.json")
+    if review.get("source_sha256")!=source["source_sha256"] or review.get("plan_sha256")!=sha(json.dumps(plan,sort_keys=True,ensure_ascii=False)):
+        record_gate(ws,"G4_REVIEW",False,["stale review source/plan"])
+    for page in review.get("pages",[]):
+        draft=read_json(Path(ws)/"drafts"/(page["page_id"]+".json"))
+        if sha(json.dumps(draft,sort_keys=True,ensure_ascii=False))!=page.get("draft_sha256"):
+            record_gate(ws,"G4_REVIEW",False,["stale draft review "+page["page_id"]])
+    manifest=read_json(Path(ws)/"content-manifest.json")
+    b=read_json(Path(ws)/"reports"/"browser.json")
+    if b.get("manifest_sha256")!=sha((Path(ws)/"content-manifest.json").read_bytes()) or any(
+       b.get("rendered_files",{}).get(x["file"])!=sha((Path(ws)/"draft-pages"/x["file"]).read_bytes())
+       for x in manifest["pages"]):
+        record_gate(ws,"G5_BROWSER",False,["published files differ from inspected browser QA bytes"])
+    dst=Path(ws)/"published";dst.mkdir(exist_ok=True)
+    files=["index.html"]+[item["file"] for item in manifest["pages"]]
+    for name in files:
+        src=Path(ws)/"draft-pages"/name
+        if not src.is_file():record_gate(ws,"G6_DELIVERY",False,["missing generated page "+name])
+        shutil.copy2(src,dst/name)
+    st=state(ws)
+    st["artifacts"]=[{"file":str((dst/name).resolve()),"sha256":sha((dst/name).read_bytes()),"verified":True} for name in files]
+    st.setdefault("gates",{})["G6_DELIVERY"]={"ok":False,"status":"PREPARED","issues":[],"evidence":str(dst)}
+    st.setdefault("verification",{})["G6_DELIVERY"]="PREPARED"
+    st["phase"]="G6_PREPARED"
     save(ws,st)
-    record_gate(ws,"G6_DELIVERY",True,evidence=dst)
-    # Host delivering one link per separate conversation turn remains a host constraint.
-    atomic_json(Path(ws)/"delivery-queue.json",{"cursor":0,"files":["index.html"]+[v["file"] for v in manifest["pages"]],"one_link_per_turn":True})
+    atomic_json(Path(ws)/"delivery-queue.json",{"cursor":0,"files":files,"one_link_per_turn":True})
     return dst
 
 def demo(ws):
@@ -427,13 +532,19 @@ def demo(ws):
     pts=[]
     for i,s in enumerate(src["segments"],1):
         pts.append({"lp_id":f"LP{i:04}","title":f"学习点 {i}: {s['heading']}","kind":"mechanism","goal":"理解来源内容的机制与条件","source_span_ids":[s["id"]],"prerequisites":[],
-                    "required_facts":[{"id":f"F{i:04}-01","text":s["text"],"span_id":s["id"]}]})
+                    "required_facts":[{"id":f"F{i:04}-01","text":s["text"],"span_id":s["id"],"source_quote":s["text"][:90]}],
+                    "inventory_ids":[f"I{i:04}"]})
     pages=[{"page_id":f"P{i:03}","lp_ids":[p["lp_id"]],"title":p["title"]} for i,p in enumerate(pts,1)]
-    plan={"source_sha256":src["source_sha256"],"points":pts,"pages":pages,"mode":"study-d"}
+    inventory=[{"id":f"I{i:04}","kind":"mechanism","span_id":seg["id"],
+                "title":f"Source mechanism {i}","objective":"Explain how this verified source segment works",
+                "source_quote":seg["text"][:100]} for i,seg in enumerate(src["segments"],1)]
+    plan={"source_sha256":src["source_sha256"],"points":pts,"pages":pages,"mode":"study-d",
+          "source_inventory":inventory,"experiment_coverage":[],"reflection_coverage":[]}
     atomic_json(w/"plan.json",plan)
     report=validate_plan(w)
     if report["issues"]:raise GateError("offline fixture plan invalid: "+str(report["issues"]))
-    atomic_json(w/"reviews"/"plan-review.json",{"approved":True,"issues":[],"plan_sha256":sha(json.dumps(plan,sort_keys=True,ensure_ascii=False)),"fixture_only":True})
+    atomic_json(w/"reviews"/"plan-review.json",{"approved":True,"issues":[],"plan_sha256":sha(json.dumps(plan,sort_keys=True,ensure_ascii=False)),
+        "quality_audits_validated":True,"fixture_only":True})
     freeze(w)
     for p in pages:
         id=p["lp_ids"][0];point=next(x for x in pts if x["lp_id"]==id)
@@ -450,6 +561,29 @@ def demo(ws):
             "simulation":{"title":"来源更新状态对照","kind":"preset","states":[
                 {"label":"来源未更新","observation":"Hash 一致","explanation":"现有规划仍适用于当前版本"},
                 {"label":"来源已更新","observation":"Hash 不一致","explanation":"需要重新验证来源和页面合同"}]}}
+        # Explicitly marked fixture: rich structured teaching keeps structural tests meaningful.
+        payload["checkpoint"]["rubric"]="正确选项需要解释来源哈希为何固定材料版本，并说明锚点如何定位相应机制，以及旧材料变化会产生什么风险。"
+        payload["teaching_evidence"]=[{
+          "lp_id":id,
+          "core_explanation":("源材料记录了从输入到输出的具体信息流程。学习者必须先读取源片段、确认可引用的来源位置，再将机制转换成明确可检验的内容约束。"+
+                              "本演示强调文件哈希记录的是哪个版本的材料，知识点与事实 ID 记录的是哪一条依据。"+
+                              "当来源发生变化时，复用旧内容可能产生错误，因此要重新比较证据后才能确认原有解释是否仍然成立。"),
+          "causal_steps":[
+            "先读取整个目标范围并保存原始来源的内容哈希和稳定片段编号，因为没有原文证据，任何教学解释都可能混淆版本。",
+            "随后把来源片段映射到单独学习点及每条事实，让页面生成和审核能追溯遗漏的具体条件以及产生的后果。"],
+          "worked_example":{
+            "scenario":"某位学习者在复习来源材料后发现章节文本发生修改，需要判断旧版课程是否仍能用于当前学习。",
+            "input":"原始章节哈希、最新章节原文，以及课程保存的来源片段和学习点对应表。",
+            "reasoning_steps":[
+               "首先比较当前原文与保存版本的 SHA256 指纹，识别是否发生任何可观测的文本修订。",
+               "接着根据稳定的片段锚点核查被改动的条件，并重新评估引用它的教学内容与考核标准。"],
+            "outcome":"若关键条件已变化，应更新相应学习点、页面解释和审核结果，再继续按新版本讲授。",
+            "why":"这样能区分真正被影响的内容与保持有效的知识点，减少无差别重复学习，也让审阅者能够追溯每个判断的原始依据。此过程还需要检查条件变化是否影响实际结果，不能仅凭来源指纹改变就判断原有教学结论已失效。"},
+          "conditions":["该流程适用于能够读取原文并取得可靠片段锚点的资料；其他资料应明确记录缺失范围并进行相应降级处理。"],
+          "limitations":["哈希变化只能证明文件内容发生变化，不能独立判断概念是否改变，还需审阅具体片段及其对结论的影响。"],
+          "fact_explanations":[{"fact_id":point["required_facts"][0]["id"],
+             "explanation":"对应的来源事实是本页教学推导的起点。它用于证明为什么需要保留可复核的原始材料、稳定编号以及从机制到页面的映射关系。仅展示原始摘录只能说明材料存在，完整理解还需要通过上述步骤和改变条件的例子来解释其作用。"}]
+        }]
         atomic_json(w/"drafts"/(p["page_id"]+".json"),payload)
     build_pages(w)
     rep=content_static_check(w)
@@ -466,8 +600,8 @@ def approve_outline(ws):
     p=read_json(Path(ws)/"plan.json")
     r=read_json(Path(ws)/"reviews"/"plan-review.json")
     expected=sha(json.dumps(p,sort_keys=True,ensure_ascii=False))
-    if not r.get("approved") or r.get("plan_sha256")!=expected:
-        raise GateError("independent reviewer must approve same plan first")
+    if not r.get("approved") or r.get("plan_sha256")!=expected or r.get("quality_audits_validated") is not True:
+        raise GateError("independent atomicity/source reviewer must approve same plan first")
     atomic_json(Path(ws)/"owner-outline-approval.json",{"approved":True,"plan_sha256":expected,"actor":"user-approved-via-host"})
     return {"approved":True,"plan_sha256":expected}
 
@@ -515,6 +649,13 @@ def confirm_delivery(ws,file):
     q["confirmed"]=pending
     q.pop("pending",None)
     atomic_json(qpath,q)
+    st=state(w)
+    finished=q["cursor"]==len(q["files"])
+    st.setdefault("verification",{})["G6_DELIVERY"]="DELIVERY_CONFIRMED" if finished else "IN_PROGRESS"
+    st.setdefault("gates",{})["G6_DELIVERY"]={"ok":finished,"status":st["verification"]["G6_DELIVERY"],
+        "issues":[],"evidence":str(qpath)}
+    if finished:st["phase"]="G6_DELIVERY"
+    save(w,st)
     return {"confirmed":True,"duplicate":False,"index":q["cursor"],
             "file":str(candidate),"remaining":len(q["files"])-q["cursor"]}
 

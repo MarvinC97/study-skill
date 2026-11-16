@@ -75,6 +75,24 @@ learner approval** before `approve-outline`, `freeze`, draft generation,
 rendering, review, verification and publishing. This also applies to short
 deep outlines.
 
+## V6.2 strict content acceptance
+
+Study-D uses the mandatory [G2–G6 quality contract](../references/quality-gates-v6.2.md).
+The host first builds the atomic source_inventory with one independent LP per
+deep learning page; maps original experiments and reflection questions; and
+obtains a detailed isolated plan review before asking the learner to approve
+the outline. The lesson draft must include teaching_evidence with causal
+explanations, worked examples, conditions/limits, and per-fact justification.
+Source quotes remain in a separate HTML container, and do not satisfy teaching
+coverage. The independent reviewer must produce per-fact and per-dimension
+justifications tied to source and draft hashes.
+
+The checker records SOURCE_VERIFIED, PLAN_REVIEW_PASS,
+CONTENT_STRUCTURAL_PASS, CONTENT_REVIEW_PASS, BROWSER_PASS and
+G6 PREPARED / IN_PROGRESS / DELIVERY_CONFIRMED as distinct states.
+Old unverified 22-page Study-D output stays historical draft until replanned,
+rewritten and rechecked. Schema-3.0 learner evidence is preserved.
+
 ## Review receipt contracts and deterministic CLI
 
 Read [`../references/v6-agent-runtime.md`](../references/v6-agent-runtime.md)

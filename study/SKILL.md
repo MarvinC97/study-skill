@@ -75,6 +75,27 @@ reviewer receipts, Windows examples and continuation behavior.
    Preserve English technical terms, APIs, code and formulas with Chinese
    explanations on first occurrence. Label tutor inferences and extensions.
 
+## Strict deep-study quality contract (mandatory)
+
+Load `references/quality-gates-v6.2.md` before any /study-d planning,
+authoring or review. G2 requires a complete atomic `source_inventory`,
+one independently teachable inventory item per deep LP/page, exact source
+quotes per fact, explicit mapping of numbered experiments and thought questions,
+and real reviewer audits per LP and source span. User approval is required for
+the reviewed fine-grained plan before content drafting. Neither a requested
+page count nor an old 22-page draft is an approved outline.
+
+G3 requires `teaching_evidence` per LP: original mechanism explanation,
+causal steps, a worked example, applicability/limits, per-fact explanations,
+experimental methods/results where relevant, and a checkpoint reasoning rubric.
+Copied source facts or a three-paragraph generic summary cannot count as
+teaching. G4 requires a reviewer-specific quote/reason/coverage audit for
+every fact and pedagogical dimension, tied to exact draft hashes. G5 checks
+mobile/desktop, keyboard, JS-off and interaction behavior on the exact HTML
+bytes. G6 stays PREPARED until real learner-visible delivery confirmation.
+Legacy pages without this contract stay UNVERIFIED and are preserved for
+revision, rather than being silently marked complete.
+
 ## Independent review and real Host gates
 
 - When the host supports delegated/subagent tasks, assign plan/content/answer

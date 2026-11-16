@@ -7,6 +7,7 @@ import study_runtime as v5
 import v6_agent as agent
 import v6_ops
 import v61_learner as learners
+import quality_fixture as qf
 
 class HostNativeTests(unittest.TestCase):
  def setUp(self):
@@ -22,46 +23,27 @@ class HostNativeTests(unittest.TestCase):
   self.plan={'source_sha256':src['source_sha256'],'points':self.points,
       'pages':[{'page_id':f'P{i:03d}','lp_ids':[p['lp_id']],'title':p['title']}
                for i,p in enumerate(self.points,1)],'mode':'study-d'}
+  qf.add_inventory(self.plan,src)
   v5.atomic_json(self.w/'plan.json',self.plan)
   self.reviewdir=self.w/'reviews';self.reviewdir.mkdir()
   self.reader=src
 
  def plan_review(self):
-  return {'review_mode':'isolated_host_agent','reviewer_context_id':'reviewer-A',
-          'writer_context_id':'writer-B','approved':True,'issues':[],
-          'checked_span_ids':[s['id'] for s in self.reader['segments']],
-          'plan_sha256':agent.digest(self.plan),'source_sha256':self.reader['source_sha256']}
+  return qf.plan_review(self.plan,self.reader)
 
  def prepare_plan(self):
   r=self.w/'review.json';v5.atomic_json(r,self.plan_review())
   return agent.accept_plan_review(self.w,r)
 
  def write_drafts(self):
-  for pg in self.plan['pages']:
-   pid=pg['page_id']
-   p=next(x for x in self.points if x['lp_id']==pg['lp_ids'][0])
-   draft={'title':pg['title'],'intro':'Learn to explain a verified source mechanism.',
-     'sections':[
-       {'heading':'Why','text':'This topic follows from the original source and its factual conditions.'},
-       {'heading':'How','text':'Inputs and steps determine a result, with explicit checks for each factual requirement.'},
-       {'heading':'Example','text':'The source example demonstrates the mechanism under its stated conditions.'}
-     ],
-     'mini_questions':[{'question':'Which fact grounds this?','answer':'The cited source span.'}],
-     'checkpoint':{'question':'Which supports the lesson?','options':['color','source','spacing'],
-                   'correct_index':1,'feedback':'Use the source evidence.'},
-     'represented_fact_ids':[p['required_facts'][0]['id']]}
-   v5.atomic_json(self.w/'drafts'/(pid+'.json'),draft)
+  for page in self.plan['pages']:
+   point=next(p for p in self.points if p['lp_id']==page['lp_ids'][0])
+   v5.atomic_json(self.w/'drafts'/(page['page_id']+'.json'),qf.draft(point,page['title']))
 
  def content_review(self):
-  pages=[]
-  for p in self.plan['pages']:
-   pid=p['page_id'];draft=v5.read_json(self.w/'drafts'/(pid+'.json'))
-   facts=[f['id'] for point in self.points if point['lp_id'] in p['lp_ids'] for f in point['required_facts']]
-   pages.append({'page_id':pid,'approved':True,'issues':[],
-                 'checked_fact_ids':facts,'draft_sha256':agent.digest(draft)})
-  return {'review_mode':'isolated_host_agent','writer_context_id':'writer-A',
-          'reviewer_context_id':'reviewer-C','source_sha256':self.reader['source_sha256'],
-          'plan_sha256':agent.digest(self.plan),'pages':pages}
+  return qf.content_review(self.plan,self.reader,{
+    p['page_id']:v5.read_json(self.w/'drafts'/(p['page_id']+'.json'))
+    for p in self.plan['pages']})
 
  def test_host_native_full_pipeline_without_provider_env(self):
   with patch.dict(os.environ,{},clear=True):
@@ -78,9 +60,7 @@ class HostNativeTests(unittest.TestCase):
    report=v5.content_static_check(self.w)
    self.assertEqual(report['status'],'pass')
    def fake_browser(ws):
-    result={'passed':True,'browser_executed':True,'pages_tested':len(self.plan['pages']),'issues':[]}
-    v5.atomic_json(Path(ws)/'reports'/'browser.json',result)
-    return result
+    return qf.browser_receipt(ws)
    with patch.object(v5,'browser_qa',side_effect=fake_browser):
     gates=agent.verify(self.w)
    self.assertTrue(gates['G5_BROWSER']['ok'])

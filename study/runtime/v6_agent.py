@@ -11,6 +11,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 import study_runtime as host
 import v61_learner as learners
+import quality_contract as qc
 
 def load(p):
     return host.read_json(p)
@@ -76,9 +77,19 @@ def accept_plan_review(ws,review_file):
         raise host.GateError("review does not match frozen source/plan hashes")
     if rev.get("approved") is not True or rev.get("issues"):
         raise host.GateError("independent reviewer rejected plan: "+str(rev.get("issues",[])))
+    scope=dict(src,text=(Path(ws)/"source.txt").read_text(encoding="utf-8"))
+    audit_issues=qc.validate_plan_review_audits(rev,scope,plan)
+    if audit_issues:
+        raise host.GateError("G2 independent atomicity/source coverage audit failed: "+str(audit_issues[:12]))
     stored={"approved":True,"issues":[],"reviewer_role":"isolated_host_agent",
       "reviewer_context_id":rev["reviewer_context_id"],"plan_sha256":digest(plan),
-      "source_sha256":src["source_sha256"],"checked_span_ids":sorted(required)}
+      "source_sha256":src["source_sha256"],"checked_span_ids":sorted(required),
+      "quality_contract":"deep-semantic-v2","quality_audits_validated":True,
+      "atomicity_audits":rev.get("atomicity_audits",[]),
+      "span_audits":rev.get("span_audits",[]),
+      "checked_inventory_ids":rev.get("checked_inventory_ids",[]),
+      "experiment_audits":rev.get("experiment_audits",[]),
+      "reflection_audits":rev.get("reflection_audits",[])}
     host.atomic_json(Path(ws)/"reviews"/"plan-review.json",stored)
     return {"reviewed":True,"plan_sha256":stored["plan_sha256"],"spans_checked":len(required)}
 
@@ -111,22 +122,32 @@ def accept_content_review(ws,review_file):
             raise host.GateError("review is stale for "+pid)
         if entry.get("approved") is not True or entry.get("issues"):
             raise host.GateError("reviewer rejected content of "+pid)
+        quality=qc.validate_content_review_audits(entry,relevant,draft,src)
+        if quality:
+            raise host.GateError("G4 shallow/ungrounded lesson rejected "+pid+": "+str(quality[:14]))
         page_receipts.append({"page_id":pid,"approved":True,"issues":[],
-          "checked_fact_ids":sorted(required),"draft_sha256":dsha})
+          "checked_fact_ids":sorted(required),"draft_sha256":dsha,
+          "fact_audits":entry["fact_audits"],"quality_dimensions":entry["quality_dimensions"],
+          "quality_contract":"deep-semantic-v2","quality_audits_validated":True})
         all_ids.update(required)
     if got!=set(expected):raise host.GateError("content review lacks pages: "+str(set(expected)-got))
     result={"approved":True,"pages":page_receipts,"source_sha256":src["source_sha256"],
-      "plan_sha256":digest(plan),"reviewer_context_id":rev["reviewer_context_id"]}
+      "plan_sha256":digest(plan),"reviewer_context_id":rev["reviewer_context_id"],
+      "quality_contract":"deep-semantic-v2","quality_audits_validated":True}
     host.atomic_json(Path(ws)/"reviews"/"content-review.json",result)
     return {"reviewed":True,"pages":len(page_receipts),"checked_fact_ids":len(all_ids)}
 
 def check_review_integrity(ws):
     plan=need(ws,"frozen-plan.json");review=need(ws,"reviews/content-review.json")
     if review.get("plan_sha256")!=digest(plan):raise host.GateError("content review stale: plan changed")
+    if review.get("quality_audits_validated") is not True:
+        raise host.GateError("G4 semantic review receipt missing")
     for entry in review.get("pages",[]):
         draft=need(ws,"drafts/"+entry["page_id"]+".json")
         if digest(draft)!=entry.get("draft_sha256"):
             raise host.GateError("content review stale: draft changed "+entry["page_id"])
+        if entry.get("quality_audits_validated") is not True:
+            raise host.GateError("G4 per-page quality review missing for "+entry["page_id"])
 
 def render(ws):
     plan=need(ws,"frozen-plan.json")

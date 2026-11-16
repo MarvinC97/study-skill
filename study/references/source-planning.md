@@ -6,6 +6,18 @@ For a new learner/course, follow `first-use.md` before finalizing the route. Kno
 
 Read this only after the current source has been loaded/normalized, or when starting a topic-only course, book, chapter, or substantial section.
 
+## Deep-study atomicity and coverage gate
+
+For /study-d, use `quality-gates-v6.2.md`: enumerate `source_inventory`
+items before counting Units or writing pages; record exact source quotes per
+inventory item and required fact. One independent mechanism/decision/experiment
+objective belongs to one deep LP and its own page. The host checker enforces
+one inventory item per LP; an isolated reviewer must inspect the source for
+hidden merges even when the mapped text is under 1,800 characters.
+Map all numbered experiments with their design/results/limits and every thought
+question with an assessment target. If the original source omits a facet, mark
+`not_in_source` and explain the gap. Scope and source gaps stay explicit.
+
 ## Goal
 
 Before teaching, inventory the complete bounded ACTIVE learning scope and divide it into learnable Units based on information density, concept dependency, and cognitive load. The first `/study` output is an overview only.

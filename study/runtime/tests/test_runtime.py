@@ -3,8 +3,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import sys
 
 SCRIPT=Path(__file__).resolve().parents[1]/'study_runtime.py'
+sys.path.insert(0,str(SCRIPT.parent))
 spec=importlib.util.spec_from_file_location('study_v5',SCRIPT)
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
@@ -14,12 +16,22 @@ class ContractTests(unittest.TestCase):
         self.src=m.ingest(self.w,Path(__file__).resolve().parents[1]/'fixtures'/'training-mini.md')
     def tearDown(self):self.t.cleanup()
     def plan(self):
-        pts=[]
-        for i,s in enumerate(self.src['segments'],1):
-            pts.append({'lp_id':f'LP{i:04}','title':s['heading'],'goal':'解释原理','source_span_ids':[s['id']],
-                        'required_facts':[{'id':f'F{i:04}-01','text':s['text'],'span_id':s['id']}]})
-        pages=[{'page_id':f'P{i:03}','title':p['title'],'lp_ids':[p['lp_id']]} for i,p in enumerate(pts,1)]
-        return {'source_sha256':self.src['source_sha256'],'mode':'study-d','points':pts,'pages':pages}
+        points=[];inventory=[]
+        for i,segment in enumerate(self.src['segments'],1):
+            fid=f'F{i:04}-01';sid=segment['id'];iid=f'I{i:04}'
+            points.append({'lp_id':f'LP{i:04}','title':segment['heading'],
+                           'kind':'mechanism','goal':'Explain the source-grounded mechanism and its conditions',
+                           'source_span_ids':[sid],'inventory_ids':[iid],
+                           'required_facts':[{'id':fid,'text':segment['text'],
+                                              'span_id':sid,'source_quote':segment['text'][:90]}]})
+            inventory.append({'id':iid,'kind':'mechanism','title':f'Source mechanism {i}',
+               'objective':'Explain this observable source mechanism and its conditions',
+               'span_id':sid,'source_quote':segment['text'][:100]})
+        pages=[{'page_id':f'P{i:03}','title':p['title'],'lp_ids':[p['lp_id']]}
+               for i,p in enumerate(points,1)]
+        return {'source_sha256':self.src['source_sha256'],'mode':'study-d',
+           'points':points,'pages':pages,'source_inventory':inventory,
+           'experiment_coverage':[],'reflection_coverage':[]}
     def test_complete_atomic_plan_passes(self):
         m.atomic_json(self.w/'plan.json',self.plan());self.assertEqual(m.validate_plan(self.w)['status'],'pass')
     def test_seven_pages_overpacked_plan_rejected(self):
