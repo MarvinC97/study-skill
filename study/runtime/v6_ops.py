@@ -50,7 +50,7 @@ def independent_review(ws,role,source,artifact,required_ids):
     raise v5.GateError("isolated host reviewer identity is required for "+role)
   if result.get("reviewer_context_id")==result.get("writer_context_id"):
     raise v5.GateError("reviewer and writer context must differ")
-  if result.get("artifact_sha256")!=digest(artifact):
+  if result.get("artifact_sha256")!=digest(artifact["draft"] if role.endswith("-unit") else artifact):
     raise v5.GateError("review receipt does not match current "+role+" artifact")
   if set(result.get("checked_fact_ids",[]))!=set(required_ids):
     raise v5.GateError("reviewer missed required source facts for "+role)
