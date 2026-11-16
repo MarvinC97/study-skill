@@ -19,8 +19,10 @@ G2 deep plans require:
 - plan.source_inventory: every atomic source-grounded information point,
   each with id, kind, title, objective, span_id, and exact source_quote.
 - plan.points: LP records with required_facts (each has id, text, span_id,
-  exact source_quote) and exactly one inventory_id per deep LP. One deep page
-  references exactly one independent LP.
+  exact source_quote) and exactly one inventory_id per atomic LP.
+  Group up to four closely related LPs on one page when the page contains
+  a meaningful shared learning_objective and source-grounded grouping_rationale.
+  Each LP keeps its distinct source facts and assessment identity.
 - plan.experiment_coverage: EVERY experiment actually headed in the selected
   source, mapped to LP IDs. For each experiment record purpose, setup, controls,
   results, limitations. Each facet is either source_provided with exact
@@ -28,9 +30,12 @@ G2 deep plans require:
 - plan.reflection_coverage: each numbered source thought question explicitly
   mapped to LP IDs and an assessment_plan. Reflection prompts may reuse LPs;
   they do not force an extra content page unless teaching requires it.
-- Reviewer atomicity_audits (one per LP) and span_audits (one per source span),
-  with explanatory reasons and split decisions. Reviewer must also account
-  for every inventory ID, experiment and reflection prompt.
+- Reviewer uses review_contract=g2-batched-v3: independent review in bounded
+  source-anchored batches of at most 12 LPs, a focused audit of high-risk LPs,
+  and per-page coherence audits for grouped pages. Full inventory, experiment
+  and reflection coverage is still checked. Verified unchanged batch/page
+  hashes may be reused; changed scopes are reviewed again. The older per-LP
+  atomicity_audits/spans-audits receipt remains supported for single-LP plans.
 
 Minimal illustration (actual IDs/quotes come from the current source):
 
@@ -202,8 +207,9 @@ revalidation; no automatic PASS migration is permitted.
 
 ## 7. Mandatory negative regression cases
 
-- Deliberately merge two independently testable mechanisms into one LP,
-  including two inventory IDs under one deep LP: G2 FAIL.
+- Deliberately merge two independently testable mechanisms into one LP:
+  G2 FAIL. Grouping them as two LPs on one page with one coherent learning
+  objective and independent coverage evidence is allowed.
 - Omit a numbered experiment or thought question from the plan: G2 FAIL.
 - Create three shallow paragraphs, correct fact IDs and clickable controls,
   but no substantive author explanation/rubric: G3 FAIL.
