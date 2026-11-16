@@ -207,8 +207,18 @@ def validate_plan(ws):
                     issues.append(f"{p.get('page_id')}: grouped LPs require source-grounded grouping rationale")
                 if not qc.substantial(p.get("learning_objective"),20):
                     issues.append(f"{p.get('page_id')}: grouped LPs require one shared learning objective")
-        elif len(refs)>2:
-            issues.append(f"{p.get('page_id')}: standard Unit holds more than two independent LPs")
+        elif plan.get("mode")=="study":
+            # Standard Study teaches a coherent cluster of atomic LPs in ONE Unit/page.
+            # Source facts and mastery IDs remain individually traceable.
+            if len(refs)>6:
+                issues.append(f"{p.get('page_id')}: standard Unit exceeds six LPs; split by cognitive load")
+            if len(refs)>1:
+                if not qc.substantial(p.get("learning_objective"),20):
+                    issues.append(f"{p.get('page_id')}: grouped Study Unit needs a shared learning objective")
+                if not qc.substantial(p.get("grouping_rationale"),35):
+                    issues.append(f"{p.get('page_id')}: grouped Study Unit needs a reason the LPs belong together")
+        else:
+            issues.append("unknown Study mode; expected study or study-d")
     if set(lpids)-set(mapped_pages):issues.append("unassigned LPs: "+str(set(lpids)-set(mapped_pages)))
     if set(mapped_pages)-set(lpids):issues.append("page references unknown LP")
     if len(mapped_pages)!=len(set(mapped_pages)):issues.append("LP duplicated on multiple primary pages")
@@ -241,7 +251,7 @@ def freeze(ws):
     atomic_json(Path(ws)/"frozen-plan.json",plan)
     record_gate(ws,"G2_PLAN",True,evidence=Path(ws)/"frozen-plan.json")
 
-def validate_content_data(points,obj):
+def validate_content_data(points,obj,mode="study-d"):
     issues=[]
     if not isinstance(obj,dict):return ["content must be JSON object"]
     required={f["id"] for p in points for f in p.get("required_facts",[])}
@@ -251,9 +261,18 @@ def validate_content_data(points,obj):
     sections=obj.get("sections",[])
     if not isinstance(sections,list) or len(sections)<3:issues.append("insufficient teaching sections")
     elif any(not x.get("heading") or len(x.get("text","").strip())<25 for x in sections):issues.append("empty/shallow teaching section")
-    if len(obj.get("mini_questions",[]))<len(points):issues.append("not enough hidden microquestions")
-    for q in obj.get("mini_questions",[]):
-        if not q.get("answer") or not q.get("question"):issues.append("empty microquestion")
+    questions=obj.get("mini_questions",[])
+    # Standard Study checks one coherent Unit, deep Study guides discovery by LP.
+    expected=len(points) if mode=="study-d" else 1
+    if not isinstance(questions,list) or len(questions)<expected:
+        issues.append("not enough hidden microquestions for "+mode)
+    else:
+        for q in questions:
+            if not isinstance(q,dict):
+                issues.append("malformed microquestion")
+    for q in questions if isinstance(questions,list) else []:
+        if isinstance(q,dict) and (not q.get("answer") or not q.get("question")):
+            issues.append("empty microquestion")
     visual=obj.get("visual")
     if visual:
         if not isinstance(visual,dict) or visual.get("kind") not in ("flow","hierarchy","comparison") or len(visual.get("nodes",[]))<2:
@@ -268,7 +287,7 @@ def validate_content_data(points,obj):
             issues.append("simulation states missing teaching fields")
     c=obj.get("checkpoint",{})
     if len(c.get("options",[]))<3 or c.get("correct_index") not in (0,1,2) or not c.get("feedback"):issues.append("checkpoint interaction invalid")
-    issues.extend(qc.validate_authored_teaching(points,obj))
+    issues.extend(qc.validate_authored_teaching(points,obj,mode=mode))
     return issues
 
 def esc(s):return html.escape(str(s),quote=True)
@@ -362,7 +381,7 @@ def build_pages(ws, only_missing=True):
         draftpath=Path(ws)/"drafts"/(page["page_id"]+".json")
         draft=read_json(draftpath) if draftpath.exists() else None
         if draft is None:raise GateError(f"host-authored draft missing: {draftpath}")
-        issues=validate_content_data(points,draft)
+        issues=validate_content_data(points,draft,mode=plan.get("mode","study-d"))
         if issues:raise GateError(page["page_id"]+" draft invalid: "+str(issues))
         prev="index.html" if i==0 else pages[i-1]["page_id"]+".html"
         nxt="index.html" if i==len(pages)-1 else pages[i+1]["page_id"]+".html"
@@ -386,7 +405,7 @@ def content_static_check(ws):
         if not draftpath.is_file():issues.append("missing reviewed draft for "+info["page_id"]);continue
         draft=read_json(draftpath)
         related=[pmap[lp] for lp in info["lp_ids"]]
-        issues.extend(info["file"]+": "+reason for reason in validate_content_data(related,draft))
+        issues.extend(info["file"]+": "+reason for reason in validate_content_data(related,draft,mode=plan.get("mode","study-d")))
         if sha(json.dumps(draft,ensure_ascii=False,sort_keys=True))!=info.get("draft_sha256"):
             issues.append(info["file"]+" source draft changed since HTML rendering")
         if info.get("rendered_sha256") and sha(page.read_bytes())!=info["rendered_sha256"]:
@@ -729,7 +748,7 @@ def consolidate(ws,topic=""):
         draftfile=Path(ws)/"drafts"/(page["page_id"]+".json")
         if not draftfile.exists():raise GateError("missing draft for consolidation: "+page["page_id"])
         d=read_json(draftfile);ids=page["lp_ids"];points=[pt[x] for x in ids]
-        issues=validate_content_data(points,d)
+        issues=validate_content_data(points,d,mode=plan.get("mode","study-d"))
         if issues:raise GateError("cannot consolidate incomplete page: "+str(issues))
         matched+=1
         sections.append(f'<section class="card"><h2>{esc(page["page_id"]+" · "+d["title"])}</h2><p>{esc(d["intro"])}</p>')
