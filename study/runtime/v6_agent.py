@@ -78,20 +78,37 @@ def accept_plan_review(ws,review_file):
     if rev.get("approved") is not True or rev.get("issues"):
         raise host.GateError("independent reviewer rejected plan: "+str(rev.get("issues",[])))
     scope=dict(src,text=(Path(ws)/"source.txt").read_text(encoding="utf-8"))
-    audit_issues=qc.validate_plan_review_audits(rev,scope,plan)
+    cachepath=Path(ws)/"reviews"/"plan-review-cache.json"
+    cache=obj(cachepath) or {"batches":{},"pages":{}}
+    audit_issues=qc.validate_plan_review_audits(rev,scope,plan,cache)
     if audit_issues:
         raise host.GateError("G2 independent atomicity/source coverage audit failed: "+str(audit_issues[:12]))
+    # Cache only VERIFIED reviewer batches; no model calls or repeat review
+    # for unchanged source/LP and grouped-page scopes.
+    if rev.get("review_contract")=="g2-batched-v3":
+        for item in rev.get("batch_audits",[]):
+            cache["batches"][item["scope_sha256"]]=item
+        for item in rev.get("page_audits",[]):
+            cache["pages"][item["scope_sha256"]]=item
+        host.atomic_json(cachepath,cache)
     stored={"approved":True,"issues":[],"reviewer_role":"isolated_host_agent",
       "reviewer_context_id":rev["reviewer_context_id"],"plan_sha256":digest(plan),
       "source_sha256":src["source_sha256"],"checked_span_ids":sorted(required),
-      "quality_contract":"deep-semantic-v2","quality_audits_validated":True,
+      "quality_contract":rev.get("review_contract","deep-semantic-v2"),
+      "quality_audits_validated":True,
+      "reused_batches":len(rev.get("reuse_batch_sha256",[])),
+      "reviewed_batches":len(rev.get("batch_audits",[])),
+      "reviewed_grouped_pages":len(rev.get("page_audits",[])),
       "atomicity_audits":rev.get("atomicity_audits",[]),
       "span_audits":rev.get("span_audits",[]),
       "checked_inventory_ids":rev.get("checked_inventory_ids",[]),
       "experiment_audits":rev.get("experiment_audits",[]),
       "reflection_audits":rev.get("reflection_audits",[])}
     host.atomic_json(Path(ws)/"reviews"/"plan-review.json",stored)
-    return {"reviewed":True,"plan_sha256":stored["plan_sha256"],"spans_checked":len(required)}
+    return {"reviewed":True,"plan_sha256":stored["plan_sha256"],
+            "spans_checked":len(required),"reused_batches":stored["reused_batches"],
+            "reviewed_batches":stored["reviewed_batches"],
+            "reviewed_grouped_pages":stored["reviewed_grouped_pages"]}
 
 def accept_content_review(ws,review_file):
     plan=need(ws,"frozen-plan.json");src=need(ws,"source.json")
