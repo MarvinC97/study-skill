@@ -612,14 +612,51 @@ def continue_run(ws,max_retries=1):
     return publish(ws)
 
 def next_delivery(ws):
-    qpath=Path(ws)/"delivery-queue.json"
+    """Prepare one verified HTML for the host. The cursor advances on confirmation."""
+    w=Path(ws);qpath=w/"delivery-queue.json"
     if not qpath.exists():raise GateError("published delivery queue unavailable")
-    q=read_json(qpath); i=q.get("cursor",0)
+    q=read_json(qpath);i=q.get("cursor",0)
     if i>=len(q["files"]):return {"finished":True,"remaining":0}
-    name=q["files"][i]; target=Path(ws)/"published"/name
+    name=q["files"][i];target=(w/"published"/name).resolve()
     if not target.is_file():raise GateError("missing verified delivery file: "+name)
-    q["cursor"]=i+1;atomic_json(qpath,q)
-    return {"file":str(target.resolve()),"index":i+1,"total":len(q["files"]),"remaining":len(q["files"])-i-1,"one_link_this_turn":True}
+    # The pending receipt is repeatable and cannot silently skip the page.
+    fingerprint=sha(target.read_bytes())
+    pending=q.get("pending")
+    if pending and (pending.get("index")!=i+1 or pending.get("sha256")!=fingerprint
+                    or pending.get("file")!=str(target)):
+        raise GateError("pending delivery changed; inspect and reconcile before retry")
+    q["pending"]={"index":i+1,"file":str(target),"sha256":fingerprint}
+    atomic_json(qpath,q)
+    return {"file":str(target),"index":i+1,"total":len(q["files"]),
+            "remaining":len(q["files"])-i,"one_link_this_turn":True,
+            "awaiting_confirmation":True,"sha256":fingerprint}
+
+
+def confirm_delivery(ws,file):
+    """Host-only receipt after the exact prepared page is accessible to the learner."""
+    w=Path(ws);qpath=w/"delivery-queue.json"
+    if not qpath.exists():raise GateError("published delivery queue unavailable")
+    q=read_json(qpath);candidate=Path(file).resolve()
+    if q.get("confirmed") and q["confirmed"].get("file")==str(candidate):
+        receipt=q["confirmed"]
+        if not candidate.is_file() or sha(candidate.read_bytes())!=receipt["sha256"]:
+            raise GateError("previously confirmed page has changed")
+        return {"confirmed":True,"duplicate":True,"index":receipt["index"],
+                "file":str(candidate)}
+    pending=q.get("pending")
+    if not pending:raise GateError("prepare delivery before confirming")
+    if pending["file"]!=str(candidate):
+        raise GateError("confirmation does not match pending page")
+    if not candidate.is_file() or sha(candidate.read_bytes())!=pending["sha256"]:
+        raise GateError("pending page missing or modified")
+    if pending["index"]!=q["cursor"]+1:
+        raise GateError("delivery index drift; manual reconciliation required")
+    q["cursor"]+=1
+    q["confirmed"]=pending
+    q.pop("pending",None)
+    atomic_json(qpath,q)
+    return {"confirmed":True,"duplicate":False,"index":q["cursor"],
+            "file":str(candidate),"remaining":len(q["files"])-q["cursor"]}
 
 def consolidate(ws,topic=""):
     """One self-contained, completely expanded archive. No JS-dependent essential content."""

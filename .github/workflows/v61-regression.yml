@@ -1,0 +1,22 @@
+name: Study V6.1 regression
+on:
+  push:
+    branches: [fix/v6.1-resume-delivery-quiz]
+  pull_request:
+    paths:
+      - 'study/runtime/**'
+      - '.github/workflows/v61-regression.yml'
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile changed Python files
+        run: python -m compileall -q study/runtime
+      - name: V6.1 regression tests (offline)
+        run: python -m unittest discover -s study/runtime/v61tests -p 'test_*.py' -v
+      - name: V6 manager/Host tests (offline)
+        run: python -m unittest discover -s study/runtime/v6tests -p 'test_agent_host.py' -v
