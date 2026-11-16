@@ -10,6 +10,20 @@ Its goal is **complete coverage without visual overload**.
 
 It must preserve the current Study source, source anchors, learner state, and return point. Use the one per-course `study-state.json` contract in `../schemas/learning-point.md`. Map the information-point checklist and pages to stable LP IDs, retaining English source terminology/code with Chinese explanation. Artifact generation, page delivery and learner understanding are independent.
 
+## V6.2 strict preflight (overrides earlier general guidance)
+
+Before selecting a page count, run the atomic source inventory described in
+`quality-gates-v6.2.md`. A deep LP must have one focused teachable objective;
+independent experiments, algorithms, decisions and failure cases each receive
+separate LPs/pages when they can be taught and examined independently.
+For each numbered experiment and original thought question, preserve an explicit
+traceable coverage mapping. Source fact callouts are distinct from authored
+causal teaching. Finish independent source-span/LP atomicity review, present the
+entire reviewed plan to the learner and obtain explicit approval BEFORE any
+content page drafting. Reuse existing unapproved HTML only as unverified
+historical draft material. Every generated page must subsequently satisfy
+G3–G5 and its final delivery must be confirmed under G6.
+
 ## 1. Resolve the topic against the active source
 
 Use the active source and current study context first.
