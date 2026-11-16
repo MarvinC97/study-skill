@@ -145,6 +145,11 @@ def validate_authored_teaching(points,draft):
         issues.append("G3 missing authored teaching_evidence; source callouts cannot substitute")
         records=[]
     byid={p["lp_id"]:p for p in points}
+    shared=draft.get("shared_teaching") if len(points)>1 else None
+    if shared is not None:
+        if not isinstance(shared,dict) or set(shared.get("lp_ids",[]))!=set(byid):
+            issues.append("G3 shared teaching must cover exactly the grouped LPs")
+            shared=None
     seen=set()
     for record in records:
         if not isinstance(record,dict):
@@ -153,14 +158,17 @@ def validate_authored_teaching(points,draft):
         if pid not in byid or pid in seen:
             issues.append("G3 unknown/repeated teaching LP "+str(pid));continue
         seen.add(pid)
-        if not substantial(record.get("core_explanation"),120):
+        base=shared or record
+        if shared and not substantial(record.get("lp_connection"),70):
+            issues.append("G3 "+pid+" lacks an authored connection to the shared lesson")
+        if not substantial(base.get("core_explanation"),120):
             issues.append("G3 "+pid+" core explanation too shallow")
-        steps=record.get("causal_steps",[])
+        steps=base.get("causal_steps",[])
         if (not isinstance(steps,list) or len(steps)<2 or
             any(not substantial(x,35) for x in steps) or
             len(set(map(clean,steps)))!=len(steps)):
             issues.append("G3 "+pid+" lacks distinct, explained causal steps")
-        worked=record.get("worked_example",{})
+        worked=base.get("worked_example",{})
         if not isinstance(worked,dict):worked={}
         for key,minimum in (("scenario",40),("input",25),("outcome",30),("why",65)):
             if not substantial(worked.get(key),minimum):
@@ -170,7 +178,7 @@ def validate_authored_teaching(points,draft):
                 not substantial(x,28) for x in example_steps):
             issues.append("G3 "+pid+" lacks step-by-step example reasoning")
         for key in ("conditions","limitations"):
-            blocks=record.get(key,[])
+            blocks=base.get(key,[])
             if not isinstance(blocks,list) or not blocks or any(
                     not substantial(x,30) for x in blocks):
                 issues.append("G3 "+pid+" missing meaningful "+key)
@@ -200,15 +208,28 @@ def validate_authored_teaching(points,draft):
     return issues
 
 
+def shared_teaching_texts(record):
+    texts=[clean(record.get("core_explanation"))]
+    for field in ("causal_steps","conditions","limitations"):
+        texts.extend(clean(x) for x in record.get(field,[]) if isinstance(x,str))
+    ex=record.get("worked_example",{})
+    if isinstance(ex,dict):
+        texts.extend(clean(ex.get(key)) for key in ("scenario","input","outcome","why"))
+        texts.extend(clean(x) for x in ex.get("reasoning_steps",[]) if isinstance(x,str))
+    return texts
+
+
 def authored_text(draft):
     """Only tutor-authored explanations; excludes automatic rendered source callouts."""
     texts=[clean(draft.get("intro"))]
+    shared=draft.get("shared_teaching")
+    if isinstance(shared,dict):texts.extend(shared_teaching_texts(shared))
     for section in draft.get("sections",[]):
         if isinstance(section,dict):texts.append(clean(section.get("text")))
     for item in draft.get("teaching_evidence",[]):
         if not isinstance(item,dict):continue
-        for field in ("core_explanation",):
-            texts.append(clean(item.get(field)))
+        texts.append(clean(item.get("core_explanation")))
+        texts.append(clean(item.get("lp_connection")))
         for key in ("causal_steps","conditions","limitations"):
             texts.extend(clean(x) for x in item.get(key,[]) if isinstance(x,str))
         ex=item.get("worked_example",{})
@@ -225,6 +246,8 @@ def authored_text(draft):
 def dimension_text(draft,dimension):
     """Reviewer quotation must come from the type of teaching it assesses."""
     records=[x for x in draft.get("teaching_evidence",[]) if isinstance(x,dict)]
+    shared=draft.get("shared_teaching")
+    if isinstance(shared,dict):records=[shared]+records
     if dimension=="assessment_fairness":
         ck=draft.get("checkpoint",{})
         return [clean(ck.get("rubric"))] if isinstance(ck,dict) else []
