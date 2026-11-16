@@ -67,7 +67,10 @@ class HostNativeTests(unittest.TestCase):
   with patch.dict(os.environ,{},clear=True):
    self.assertEqual(agent.plan_check(self.w)['status'],'pass')
    self.assertTrue(self.prepare_plan()['reviewed'])
-   v5.freeze(self.w)
+   with self.assertRaises(v5.GateError):
+    agent.freeze(self.w)  # Study-D may not skip the learner outline approval.
+   v5.approve_outline(self.w)  # Simulates host-confirmed learner approval.
+   agent.freeze(self.w)
    self.write_drafts()
    v5.atomic_json(self.w/'content-review-input.json',self.content_review())
    agent.accept_content_review(self.w,self.w/'content-review-input.json')
