@@ -18,7 +18,7 @@ CONNECT=("This learning point supplies one necessary condition within the shared
 def build_workspace(root):
     w=root/"work"
     source=root/"text.md"
-    source.write_text("# Test source\n\n"+
+    source.write_text(
       "\n".join("## Part %d\nThe learner needs a source-grounded condition %d and its resulting mechanism to predict the outcome under a controlled change.\n"%(i,i) for i in range(1,5)),encoding="utf-8")
     host.ingest(w,source)
     src=host.read_json(w/"source.json")
