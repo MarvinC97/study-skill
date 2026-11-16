@@ -197,9 +197,18 @@ def validate_plan(ws):
     for p in pages:
         refs=p.get("lp_ids",[]);mapped_pages.extend(refs)
         if not refs:issues.append(f"{p.get('page_id')}: empty page")
-        if len(refs)>2:issues.append(f"{p.get('page_id')}: more than 2 independent LPs; split")
-        # Deep mode: a single mechanism/decision/experiment/case per page.
-        if plan.get("mode")=="study-d" and len(refs)>1:issues.append(f"{p.get('page_id')}: deep page merges independent LPs")
+        if plan.get("mode")=="study-d":
+            # Learning Points are atomic coverage/evidence IDs; page grouping is a
+            # separate teaching decision. Keep bounded cognitive load and require
+            # an explicit reason and common learning objective for related LPs.
+            if len(refs)>4:issues.append(f"{p.get('page_id')}: >4 LPs overload one deep page")
+            if len(refs)>1:
+                if not qc.substantial(p.get("grouping_rationale"),35):
+                    issues.append(f"{p.get('page_id')}: grouped LPs require source-grounded grouping rationale")
+                if not qc.substantial(p.get("learning_objective"),20):
+                    issues.append(f"{p.get('page_id')}: grouped LPs require one shared learning objective")
+        elif len(refs)>2:
+            issues.append(f"{p.get('page_id')}: standard Unit holds more than two independent LPs")
     if set(lpids)-set(mapped_pages):issues.append("unassigned LPs: "+str(set(lpids)-set(mapped_pages)))
     if set(mapped_pages)-set(lpids):issues.append("page references unknown LP")
     if len(mapped_pages)!=len(set(mapped_pages)):issues.append("LP duplicated on multiple primary pages")
