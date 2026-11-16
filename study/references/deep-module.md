@@ -15,9 +15,12 @@ It must preserve the current Study source, source anchors, learner state, and re
 Before selecting a page count, run the atomic source inventory described in
 `quality-gates-v6.2.md`. A deep LP must have one focused teachable objective;
 independent experiments, algorithms, decisions and failure cases each receive
-separate LPs/pages when they can be taught and examined independently.
+separate LP identities. Up to four tightly related LPs can share a coherent
+teaching page with an explicitly justified common goal and a separately reviewed
+page grouping. Complex experiments merit independent pages where needed.
 For each numbered experiment and original thought question, preserve an explicit
-traceable coverage mapping. Source fact callouts are distinct from authored
+traceable coverage mapping. Review atomic facts in bounded source-anchored batches,
+and reuse previously approved unchanged batch/page hashes. Source fact callouts are distinct from authored
 causal teaching. Finish independent source-span/LP atomicity review, present the
 entire reviewed plan to the learner and obtain explicit approval BEFORE any
 content page drafting. Reuse existing unapproved HTML only as unverified
