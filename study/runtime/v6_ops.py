@@ -124,8 +124,10 @@ def confirm_unit_delivery(ws,file):
       raise v5.GateError('confirmed Unit artifact changed')
     return {'confirmed':True,'duplicate':True,'unit':receipt['unit'],'file':str(candidate)}
   pending=obj(w/'unit-delivery-pending.json')
-  if not pending or pending.get('file')!=str(candidate):
-    raise v5.GateError('prepare /study-n and deliver the page before confirmation')
+  if not pending:
+    return learners.confirm_artifact_delivery(w,candidate)
+  if pending.get('file')!=str(candidate):
+    raise v5.GateError('confirmation does not match the pending Unit')
   if not candidate.is_file() or v5.sha(candidate.read_bytes())!=pending['sha256']:
     raise v5.GateError('pending Unit artifact missing or changed')
   index=int(v5.state(w).get('current_unit',0))
