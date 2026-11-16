@@ -524,13 +524,19 @@ def demo(ws):
     pts=[]
     for i,s in enumerate(src["segments"],1):
         pts.append({"lp_id":f"LP{i:04}","title":f"学习点 {i}: {s['heading']}","kind":"mechanism","goal":"理解来源内容的机制与条件","source_span_ids":[s["id"]],"prerequisites":[],
-                    "required_facts":[{"id":f"F{i:04}-01","text":s["text"],"span_id":s["id"]}]})
+                    "required_facts":[{"id":f"F{i:04}-01","text":s["text"],"span_id":s["id"]}],
+                    "inventory_ids":[f"I{i:04}"]})
     pages=[{"page_id":f"P{i:03}","lp_ids":[p["lp_id"]],"title":p["title"]} for i,p in enumerate(pts,1)]
-    plan={"source_sha256":src["source_sha256"],"points":pts,"pages":pages,"mode":"study-d"}
+    inventory=[{"id":f"I{i:04}","kind":"mechanism","span_id":seg["id"],
+                "title":f"Source mechanism {i}","objective":"Explain how this verified source segment works",
+                "source_quote":seg["text"][:100]} for i,seg in enumerate(src["segments"],1)]
+    plan={"source_sha256":src["source_sha256"],"points":pts,"pages":pages,"mode":"study-d",
+          "source_inventory":inventory,"experiment_coverage":[],"reflection_coverage":[]}
     atomic_json(w/"plan.json",plan)
     report=validate_plan(w)
     if report["issues"]:raise GateError("offline fixture plan invalid: "+str(report["issues"]))
-    atomic_json(w/"reviews"/"plan-review.json",{"approved":True,"issues":[],"plan_sha256":sha(json.dumps(plan,sort_keys=True,ensure_ascii=False)),"fixture_only":True})
+    atomic_json(w/"reviews"/"plan-review.json",{"approved":True,"issues":[],"plan_sha256":sha(json.dumps(plan,sort_keys=True,ensure_ascii=False)),
+        "quality_audits_validated":True,"fixture_only":True})
     freeze(w)
     for p in pages:
         id=p["lp_ids"][0];point=next(x for x in pts if x["lp_id"]==id)
@@ -547,6 +553,29 @@ def demo(ws):
             "simulation":{"title":"来源更新状态对照","kind":"preset","states":[
                 {"label":"来源未更新","observation":"Hash 一致","explanation":"现有规划仍适用于当前版本"},
                 {"label":"来源已更新","observation":"Hash 不一致","explanation":"需要重新验证来源和页面合同"}]}}
+        # Explicitly marked fixture: rich structured teaching keeps structural tests meaningful.
+        payload["checkpoint"]["rubric"]="正确选项需要解释来源哈希为何固定材料版本，并说明锚点如何定位相应机制，以及旧材料变化会产生什么风险。"
+        payload["teaching_evidence"]=[{
+          "lp_id":id,
+          "core_explanation":("源材料记录了从输入到输出的具体信息流程。学习者必须先读取源片段、确认可引用的来源位置，再将机制转换成明确可检验的内容约束。"+
+                              "本演示强调文件哈希记录的是哪个版本的材料，知识点与事实 ID 记录的是哪一条依据。"+
+                              "当来源发生变化时，复用旧内容可能产生错误，因此要重新比较证据后才能确认原有解释是否仍然成立。"),
+          "causal_steps":[
+            "先读取整个目标范围并保存原始来源的内容哈希和稳定片段编号，因为没有原文证据，任何教学解释都可能混淆版本。",
+            "随后把来源片段映射到单独学习点及每条事实，让页面生成和审核能追溯遗漏的具体条件以及产生的后果。"],
+          "worked_example":{
+            "scenario":"某位学习者在复习来源材料后发现章节文本发生修改，需要判断旧版课程是否仍能用于当前学习。",
+            "input":"原始章节哈希、最新章节原文，以及课程保存的来源片段和学习点对应表。",
+            "reasoning_steps":[
+               "首先比较当前原文与保存版本的 SHA256 指纹，识别是否发生任何可观测的文本修订。",
+               "接着根据稳定的片段锚点核查被改动的条件，并重新评估引用它的教学内容与考核标准。"],
+            "outcome":"若关键条件已变化，应更新相应学习点、页面解释和审核结果，再继续按新版本讲授。",
+            "why":"这样能区分真正被影响的内容与保持有效的知识点，减少无差别重复学习，也让审阅者能够追溯每个判断的原始依据。"},
+          "conditions":["该流程适用于能够读取原文并取得可靠片段锚点的资料；其他资料应明确记录缺失范围并进行相应降级处理。"],
+          "limitations":["哈希变化只能证明文件内容发生变化，不能独立判断概念是否改变，还需审阅具体片段及其对结论的影响。"],
+          "fact_explanations":[{"fact_id":point["required_facts"][0]["id"],
+             "explanation":"对应的来源事实是本页教学推导的起点。它用于证明为什么需要保留可复核的原始材料、稳定编号以及从机制到页面的映射关系。仅展示原始摘录只能说明材料存在，完整理解还需要通过上述步骤和改变条件的例子来解释其作用。"}]
+        }]
         atomic_json(w/"drafts"/(p["page_id"]+".json"),payload)
     build_pages(w)
     rep=content_static_check(w)
