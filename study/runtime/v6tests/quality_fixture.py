@@ -18,6 +18,7 @@ def add_inventory(plan,source):
         for fact in point.get("required_facts",[]):
             source_fact_span=next(x for x in source["segments"] if x["id"]==fact["span_id"])
             fact["source_quote"]=source_fact_span["text"][:90]
+        point["kind"]="mechanism"
         point["inventory_ids"]=[iid]
         plan["source_inventory"].append({
           "id":iid,"kind":"mechanism","span_id":sid,
