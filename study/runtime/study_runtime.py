@@ -658,7 +658,15 @@ def next_delivery(ws):
     w=Path(ws);qpath=w/"delivery-queue.json"
     if not qpath.exists():raise GateError("published delivery queue unavailable")
     q=read_json(qpath);i=q.get("cursor",0)
-    if i>=len(q["files"]):return {"finished":True,"remaining":0}
+    if i>=len(q["files"]):
+        planfile=Path(ws)/"frozen-plan.json"
+        if planfile.is_file():
+            plan=read_json(planfile)
+            if len(q["files"])<len(plan.get("pages",[]))+1:
+                return {"finished":False,"awaiting_next_page_authoring":True,
+                        "pages_staged":max(0,len(q["files"])-1),
+                        "total_pages":len(plan.get("pages",[]))}
+        return {"finished":True,"remaining":0}
     name=q["files"][i];target=(w/"published"/name).resolve()
     if not target.is_file():raise GateError("missing verified delivery file: "+name)
     # The pending receipt is repeatable and cannot silently skip the page.
@@ -698,7 +706,11 @@ def confirm_delivery(ws,file):
     q.pop("pending",None)
     atomic_json(qpath,q)
     st=state(w)
-    finished=q["cursor"]==len(q["files"])
+    planfile=w/"frozen-plan.json"
+    all_authored=True
+    if planfile.is_file():
+        all_authored=(len(q["files"])>=len(read_json(planfile).get("pages",[]))+1)
+    finished=q["cursor"]==len(q["files"]) and all_authored
     st.setdefault("verification",{})["G6_DELIVERY"]="DELIVERY_CONFIRMED" if finished else "IN_PROGRESS"
     st.setdefault("gates",{})["G6_DELIVERY"]={"ok":finished,"status":st["verification"]["G6_DELIVERY"],
         "issues":[],"evidence":str(qpath)}
