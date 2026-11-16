@@ -19,8 +19,10 @@ G2 deep plans require:
 - plan.source_inventory: every atomic source-grounded information point,
   each with id, kind, title, objective, span_id, and exact source_quote.
 - plan.points: LP records with required_facts (each has id, text, span_id,
-  exact source_quote) and exactly one inventory_id per deep LP. One deep page
-  references exactly one independent LP.
+  exact source_quote) and exactly one inventory_id per atomic LP.
+  Group up to four closely related LPs on one page when the page contains
+  a meaningful shared learning_objective and source-grounded grouping_rationale.
+  Each LP keeps its distinct source facts and assessment identity.
 - plan.experiment_coverage: EVERY experiment actually headed in the selected
   source, mapped to LP IDs. For each experiment record purpose, setup, controls,
   results, limitations. Each facet is either source_provided with exact
@@ -28,9 +30,12 @@ G2 deep plans require:
 - plan.reflection_coverage: each numbered source thought question explicitly
   mapped to LP IDs and an assessment_plan. Reflection prompts may reuse LPs;
   they do not force an extra content page unless teaching requires it.
-- Reviewer atomicity_audits (one per LP) and span_audits (one per source span),
-  with explanatory reasons and split decisions. Reviewer must also account
-  for every inventory ID, experiment and reflection prompt.
+- Reviewer uses review_contract=g2-batched-v3: independent review in bounded
+  source-anchored batches of at most 12 LPs, a focused audit of high-risk LPs,
+  and per-page coherence audits for grouped pages. Full inventory, experiment
+  and reflection coverage is still checked. Verified unchanged batch/page
+  hashes may be reused; changed scopes are reviewed again. The older per-LP
+  atomicity_audits/spans-audits receipt remains supported for single-LP plans.
 
 Minimal illustration (actual IDs/quotes come from the current source):
 
@@ -90,7 +95,11 @@ checked_span_ids/approved/issues:
 
 If experiments/reflections exist, provide one respective audit record per
 experiment/question with experiment_id/number, complete/mapped, and reason.
-The Host validates exact inventory ID sets and source coverage. Only then may
+The Host validates inventory ID sets and source coverage. Use
+  g2-batched-v3 receipts for bounded reviewer batches (up to 12 LPs each),
+  per-grouped-page coherence checks and dedicated risk-LP checks. Persist
+  their exact scope hashes; unchanged approved reviews may be reused, and
+  modified scopes require fresh independent review. Only then may
 the user inspect/approve the reviewed Study-D outline. A page count chosen
 before inventory/approval has no authority.
 
@@ -100,6 +109,9 @@ The host creates drafts/<page-id>.json. Existing title/intro/sections,
 mini_questions/checkpoint, represented_fact_ids, visual and simulation are
 retained for HTML rendering. In addition, EVERY LP needs a separate
 teaching_evidence object describing:
+- shared_teaching: an optional complete causal mechanism/conditions/worked example
+  once per grouped page, with a declared list of its LP IDs. Each grouped LP
+  retains a substantial lp_connection and its own fact_explanations.
 - core_explanation: causal mechanism or the corresponding decision, expressed
   in sufficient detail to explain *why*.
 - causal_steps: distinguishable reasoning/process steps, not two paraphrases.
@@ -156,13 +168,21 @@ JavaScript-off reading. Browser receipt carries:
 - keyboard_tested, js_disabled_tested, interactive_tested
 - manifest_sha256 and rendered_files filename:sha256
 
+G5 caches each real passing Chromium check by its exact HTML SHA256. When
+  one page changes, retest that page and reuse only verified, unchanged pages;
+  navigation link integrity is rechecked for the full current manifest.
 G5 fails when any required browser evidence is unavailable or the HTML
 bytes differ from the tested files. A static HTML scan is STRUCTURAL_ONLY,
 and must never be promoted to BROWSER_PASS.
 
 ## 5. G6 prepared and delivered are separate
 
-After G1–G5 acceptance, publish copies the verified artifacts and records
+After the G2-reviewed plan is explicitly approved, the host may generate,
+independently review, browser-test and stage one new page at a time using
+  v6_agent.py stage-next-page --review-file ... . Each accepted page enters
+an append-only delivery queue; the learner sees one page per turn. G3–G5
+remain PARTIAL_VERIFIED until the approved page list is complete.
+For full-batch workflows, after G1–G5 acceptance, publish copies the verified artifacts and records
 G6_DELIVERY=PREPARED (ok:false). The host presents one real HTML page in one
 learner-visible response and then calls confirm-delivery for its exact file.
 Intermediate pages show IN_PROGRESS. Only the final confirmed page sets
@@ -187,12 +207,14 @@ revalidation; no automatic PASS migration is permitted.
 
 ## 7. Mandatory negative regression cases
 
-- Deliberately merge two independently testable mechanisms into one LP,
-  including two inventory IDs under one deep LP: G2 FAIL.
+- Deliberately merge two independently testable mechanisms into one LP:
+  G2 FAIL. Grouping them as two LPs on one page with one coherent learning
+  objective and independent coverage evidence is allowed.
 - Omit a numbered experiment or thought question from the plan: G2 FAIL.
 - Create three shallow paragraphs, correct fact IDs and clickable controls,
   but no substantive author explanation/rubric: G3 FAIL.
-- Return reviewer approved:true with no per-source/per-LP/per-fact audit: G2/G4 FAIL.
+- Return reviewer approved:true without source-anchored batch/page/fact and
+  pedagogical evidence: G2/G4 FAIL. Reusing changed scope hashes also fails.
 - Modify a reviewed draft or browser-tested HTML while retaining its old
   receipt: G4/G5 FAIL.
 - Publish without user-visible delivery: G6 PREPARED, not DELIVERED.

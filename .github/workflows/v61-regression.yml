@@ -1,7 +1,7 @@
 name: Study Host-Native regression
 on:
   push:
-    branches: [fix/v6.2-g2-g6-quality-gates]
+    branches: [fix/v6.2-g2-granularity-incremental]
   pull_request:
     paths:
       - 'study/runtime/**'
@@ -24,12 +24,16 @@ jobs:
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_agent_integration.py' -v
       - name: Strict G2-G6 negative quality acceptance tests
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_quality_gates.py' -v
+      - name: Grouped LPs, scoped G2 reviews and compact G4 cache
+        run: python -m unittest discover -s study/runtime/v6tests -p 'test_incremental_quality.py' -v
       - name: Install deterministic browser QA dependencies
         run: |
           python -m pip install playwright pyyaml beautifulsoup4
           python -m playwright install --with-deps chromium
       - name: Actual Chromium QA of generated fixture HTML
         run: python -m unittest discover -s study/runtime/tests -p 'test_runtime.py' -v
+      - name: Incremental page-by-page browser and delivery acceptance
+        run: python -m unittest discover -s study/runtime/tests -p 'test_incremental_stage.py' -v
       - name: Skill metadata and reference integrity
         run: python study/tests/validate_skill.py
       - name: Reject reintroduction of standalone provider requirements

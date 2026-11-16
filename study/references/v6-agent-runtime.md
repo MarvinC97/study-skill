@@ -110,7 +110,13 @@ py -3.12 study/runtime/v6_agent.py check-content --workspace "<deep workspace>"
 ```
 
 The host sends the source segments, all corresponding source facts, and the
-actual draft to a separate reviewer. Each reviewed page is recorded with
+actual draft to a separate reviewer. Related LPs may share a single complete teaching spine and worked example,
+while each LP retains its own source facts and explicit explanation. Reviews
+can use g4-compact-v3 per-fact source checks with focused risk audits. Previously
+accepted matching page hashes can be reused without rerunning an unchanged
+review.
+
+Each reviewed page is recorded with
 the canonical JSON SHA256, returned by `draft-check` or:
 
 ```powershell
@@ -158,7 +164,18 @@ Attach a deep workspace to its parent learning course with:
 py -3.12 study/runtime/v6_agent.py bind --workspace "<course workspace>\deep\<module-id>" --parent-workspace "<course workspace>" --topic "<topic>"
 ```
 
-After `publish`, one page per learner-facing reply is prepared:
+For incremental delivery, after G2 approval the host creates the next page's
+draft and independent reviewer file, then runs:
+
+```powershell
+py -3.12 study/runtime/v6_agent.py stage-next-page --workspace "<deep workspace>" --review-file "<one-page-review.json>"
+```
+
+This checks G3/G4, executes or reuses exact-byte G5 Chromium QA, and appends
+the prepared page to the existing delivery queue. Continue authoring only
+after pending pages have been delivered. Full-batch `publish` remains supported.
+
+After a page is staged, one page per learner-facing reply is prepared:
 
 ```powershell
 py -3.12 study/runtime/v6_agent.py deliver-next --workspace "<deep workspace>"

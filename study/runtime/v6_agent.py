@@ -6,6 +6,7 @@ connected host's existing agent/subagents. This CLI makes NO model API calls.
 """
 from __future__ import annotations
 import argparse
+import shutil
 import json
 from datetime import datetime,timezone
 from pathlib import Path
@@ -78,20 +79,37 @@ def accept_plan_review(ws,review_file):
     if rev.get("approved") is not True or rev.get("issues"):
         raise host.GateError("independent reviewer rejected plan: "+str(rev.get("issues",[])))
     scope=dict(src,text=(Path(ws)/"source.txt").read_text(encoding="utf-8"))
-    audit_issues=qc.validate_plan_review_audits(rev,scope,plan)
+    cachepath=Path(ws)/"reviews"/"plan-review-cache.json"
+    cache=obj(cachepath) or {"batches":{},"pages":{}}
+    audit_issues=qc.validate_plan_review_audits(rev,scope,plan,cache)
     if audit_issues:
         raise host.GateError("G2 independent atomicity/source coverage audit failed: "+str(audit_issues[:12]))
+    # Cache only VERIFIED reviewer batches; no model calls or repeat review
+    # for unchanged source/LP and grouped-page scopes.
+    if rev.get("review_contract")=="g2-batched-v3":
+        for item in rev.get("batch_audits",[]):
+            cache["batches"][item["scope_sha256"]]=item
+        for item in rev.get("page_audits",[]):
+            cache["pages"][item["scope_sha256"]]=item
+        host.atomic_json(cachepath,cache)
     stored={"approved":True,"issues":[],"reviewer_role":"isolated_host_agent",
       "reviewer_context_id":rev["reviewer_context_id"],"plan_sha256":digest(plan),
       "source_sha256":src["source_sha256"],"checked_span_ids":sorted(required),
-      "quality_contract":"deep-semantic-v2","quality_audits_validated":True,
+      "quality_contract":rev.get("review_contract","deep-semantic-v2"),
+      "quality_audits_validated":True,
+      "reused_batches":len(rev.get("reuse_batch_sha256",[])),
+      "reviewed_batches":len(rev.get("batch_audits",[])),
+      "reviewed_grouped_pages":len(rev.get("page_audits",[])),
       "atomicity_audits":rev.get("atomicity_audits",[]),
       "span_audits":rev.get("span_audits",[]),
       "checked_inventory_ids":rev.get("checked_inventory_ids",[]),
       "experiment_audits":rev.get("experiment_audits",[]),
       "reflection_audits":rev.get("reflection_audits",[])}
     host.atomic_json(Path(ws)/"reviews"/"plan-review.json",stored)
-    return {"reviewed":True,"plan_sha256":stored["plan_sha256"],"spans_checked":len(required)}
+    return {"reviewed":True,"plan_sha256":stored["plan_sha256"],
+            "spans_checked":len(required),"reused_batches":stored["reused_batches"],
+            "reviewed_batches":stored["reviewed_batches"],
+            "reviewed_grouped_pages":stored["reviewed_grouped_pages"]}
 
 def accept_content_review(ws,review_file):
     plan=need(ws,"frozen-plan.json");src=need(ws,"source.json")
@@ -104,12 +122,25 @@ def accept_content_review(ws,review_file):
         raise host.GateError("review source/plan hash mismatch")
     expected={p["page_id"]:p for p in plan["pages"]}
     points={p["lp_id"]:p for p in plan["points"]}
-    all_ids=set();page_receipts=[];got=set()
-    for entry in rev.get("pages",[]):
+    cachepath=Path(ws)/"reviews"/"content-review-cache.json"
+    cache=obj(cachepath) or {"pages":{}}
+    compact=rev.get("review_contract")=="g4-compact-v3"
+    incoming=list(rev.get("pages",[]))
+    if compact:
+        reusable=rev.get("reuse_page_sha256",[])
+        if not isinstance(reusable,list):raise host.GateError("invalid cached page list")
+        for token in reusable:
+            old=cache.get("pages",{}).get(token)
+            if not isinstance(old,dict):
+                raise host.GateError("G4 missing previously accepted page review: "+str(token))
+            incoming.append(old)
+    all_ids=set();page_receipts=[];got=set();new_cache=[]
+    for entry in incoming:
+        if not isinstance(entry,dict):raise host.GateError("malformed content review entry")
         pid=entry.get("page_id")
-        if pid not in expected or pid in got:raise host.GateError("unknown or repeated reviewed page: "+str(pid))
-        got.add(pid)
-        page=expected[pid];draftfile=Path(ws)/"drafts"/(pid+".json")
+        if pid not in expected or pid in got:
+            raise host.GateError("unknown or repeated reviewed page: "+str(pid))
+        got.add(pid);page=expected[pid]
         draft=need(ws,"drafts/"+pid+".json")
         relevant=[points[x] for x in page["lp_ids"]]
         errors=host.validate_content_data(relevant,draft)
@@ -122,20 +153,156 @@ def accept_content_review(ws,review_file):
             raise host.GateError("review is stale for "+pid)
         if entry.get("approved") is not True or entry.get("issues"):
             raise host.GateError("reviewer rejected content of "+pid)
+        review_scope=qc.content_page_scope(src,plan,page,draft)
+        if compact and (entry.get("review_contract")!="g4-compact-v3"
+                        or entry.get("review_scope_sha256")!=review_scope):
+            raise host.GateError("G4 page review scope mismatch "+pid)
         quality=qc.validate_content_review_audits(entry,relevant,draft,src)
         if quality:
             raise host.GateError("G4 shallow/ungrounded lesson rejected "+pid+": "+str(quality[:14]))
-        page_receipts.append({"page_id":pid,"approved":True,"issues":[],
+        receipt={"page_id":pid,"approved":True,"issues":[],
           "checked_fact_ids":sorted(required),"draft_sha256":dsha,
-          "fact_audits":entry["fact_audits"],"quality_dimensions":entry["quality_dimensions"],
-          "quality_contract":"deep-semantic-v2","quality_audits_validated":True})
+          "quality_dimensions":entry["quality_dimensions"],
+          "quality_contract":"compact-semantic-v3" if compact else "deep-semantic-v2",
+          "quality_audits_validated":True}
+        if compact:
+            receipt.update({"review_contract":"g4-compact-v3",
+                 "review_scope_sha256":review_scope,
+                 "fact_checks":entry["fact_checks"],"risk_audits":entry.get("risk_audits",[])})
+            new_cache.append(receipt)
+        else:
+            receipt["fact_audits"]=entry["fact_audits"]
+        page_receipts.append(receipt)
         all_ids.update(required)
-    if got!=set(expected):raise host.GateError("content review lacks pages: "+str(set(expected)-got))
+    if got!=set(expected):
+        raise host.GateError("content review lacks pages: "+str(set(expected)-got))
     result={"approved":True,"pages":page_receipts,"source_sha256":src["source_sha256"],
       "plan_sha256":digest(plan),"reviewer_context_id":rev["reviewer_context_id"],
-      "quality_contract":"deep-semantic-v2","quality_audits_validated":True}
+      "quality_contract":"compact-semantic-v3" if compact else "deep-semantic-v2",
+      "quality_audits_validated":True,
+      "reused_pages":len(rev.get("reuse_page_sha256",[])) if compact else 0}
     host.atomic_json(Path(ws)/"reviews"/"content-review.json",result)
-    return {"reviewed":True,"pages":len(page_receipts),"checked_fact_ids":len(all_ids)}
+    if compact:
+        for item in new_cache:
+            cache["pages"][item["review_scope_sha256"]]=item
+        host.atomic_json(cachepath,cache)
+    return {"reviewed":True,"pages":len(page_receipts),
+            "checked_fact_ids":len(all_ids),"reused_pages":result["reused_pages"]}
+
+def stage_next_page(ws,review_file):
+    """Review, browser-test and prepare ONE page from an approved frozen plan.
+    Previously delivered pages and receipts remain unchanged.
+    """
+    w=Path(ws);plan=need(w,"frozen-plan.json");src=need(w,"source.json")
+    if plan.get("mode")!="study-d":
+        raise host.GateError("stage-next-page applies to an approved Study-D plan")
+    original=need(w,"plan.json")
+    if digest(original)!=digest(plan):
+        raise host.GateError("frozen Study-D plan has changed")
+    approved=need(w,"reviews/plan-review.json")
+    owner=need(w,"owner-outline-approval.json")
+    if approved.get("plan_sha256")!=digest(plan) or approved.get("approved") is not True:
+        raise host.GateError("G2 independent outline review missing")
+    if owner.get("approved") is not True or owner.get("plan_sha256")!=digest(plan):
+        raise host.GateError("Study-D owner approval missing")
+    ledgerpath=w/"reports"/"page-receipts.json"
+    ledger=obj(ledgerpath) or {"plan_sha256":digest(plan),
+       "source_sha256":src["source_sha256"],"pages":[]}
+    if ledger.get("plan_sha256")!=digest(plan) or ledger.get("source_sha256")!=src["source_sha256"]:
+        raise host.GateError("incremental stage source/plan changed; reconcile existing pages first")
+    if len(ledger["pages"])>=len(plan["pages"]):
+        return {"finished_authoring":True,"pages":len(ledger["pages"])}
+    next_page=plan["pages"][len(ledger["pages"])]
+    pid=next_page["page_id"]
+    queuepath=w/"delivery-queue.json"
+    queue=obj(queuepath)
+    if queue and queue.get("cursor",0)<len(queue.get("files",[])):
+        raise host.GateError("finish presenting the previous prepared page before authoring the next")
+    draft=need(w,"drafts/"+pid+".json")
+    lookup={p["lp_id"]:p for p in plan["points"]}
+    related=[lookup[lp] for lp in next_page["lp_ids"]]
+    errors=host.validate_content_data(related,draft)
+    if errors:raise host.GateError("G3 draft rejected "+pid+": "+str(errors[:12]))
+    rev=load(review_file)
+    if rev.get("review_mode")!="isolated_host_agent" or not rev.get("reviewer_context_id"):
+        raise host.GateError("G4 independent host-agent reviewer required")
+    if rev.get("writer_context_id")==rev.get("reviewer_context_id"):
+        raise host.GateError("G4 reviewer cannot equal writer context")
+    if rev.get("source_sha256")!=src["source_sha256"] or rev.get("plan_sha256")!=digest(plan):
+        raise host.GateError("G4 page review source or outline is stale")
+    entries=rev.get("pages",[])
+    if len(entries)!=1 or entries[0].get("page_id")!=pid:
+        raise host.GateError("G4 require exactly the next page review "+pid)
+    entry=entries[0]
+    required={f["id"] for p in related for f in p["required_facts"]}
+    if (set(entry.get("checked_fact_ids",[]))!=required or
+        entry.get("draft_sha256")!=digest(draft) or
+        entry.get("approved") is not True or entry.get("issues")):
+        raise host.GateError("G4 fact coverage, approval or draft hash mismatch")
+    if entry.get("review_contract")=="g4-compact-v3" and (
+       entry.get("review_scope_sha256")!=qc.content_page_scope(src,plan,next_page,draft)):
+        raise host.GateError("G4 scoped page audit stale")
+    issues=qc.validate_content_review_audits(entry,related,draft,src)
+    if issues:raise host.GateError("G4 semantic review failed: "+str(issues[:12]))
+    # Generated navigation links only to the index until neighbors are ready.
+    dest=w/"draft-pages"/(pid+".html")
+    html=host.html_page(next_page,related,draft,src,"index.html","index.html")
+    host.write_text(dest,html)
+    staged=ledger["pages"]+[{"page_id":pid,"file":pid+".html",
+        "lp_ids":next_page["lp_ids"],"draft_sha256":digest(draft),
+        "rendered_sha256":host.sha(html),
+        "review_scope_sha256":qc.content_page_scope(src,plan,next_page,draft),
+        "reviewer_context_id":rev["reviewer_context_id"],
+        "review_contract":entry.get("review_contract","deep-semantic-v2")}]
+    index_lines=['<h1>Study-D · 已审定课程路线</h1>']
+    for item in plan["pages"]:
+        label=host.esc(item["page_id"]+" · "+item["title"])
+        if any(v["page_id"]==item["page_id"] for v in staged):
+            index_lines.append('<p><a href="'+host.esc(item["page_id"])+'.html">'+label+'</a></p>')
+        else:index_lines.append('<p>'+label+' · 待生成</p>')
+    index_markup='<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+host.CSS+'</style><main>'+''.join(index_lines)+'</main></html>'
+    host.write_text(w/"draft-pages"/"index.html",index_markup)
+    manifest={"source_sha256":src["source_sha256"],"pages":staged,"index":"index.html"}
+    host.atomic_json(w/"content-manifest.json",manifest)
+    structural=host.content_static_check(w)
+    if structural["issues"]:
+        raise host.GateError("G3 page structure rejected: "+str(structural["issues"][:12]))
+    browser=host.browser_qa(w)
+    if browser.get("passed") is not True or browser.get("browser_executed") is not True:
+        raise host.GateError("G5 real browser QA failed: "+str(browser.get("issues",[])))
+    out=w/"published";out.mkdir(exist_ok=True)
+    shutil.copy2(dest,out/(pid+".html"))
+    shutil.copy2(w/"draft-pages"/"index.html",out/"index.html")
+    host.atomic_json(ledgerpath,{"plan_sha256":digest(plan),
+       "source_sha256":src["source_sha256"],"pages":staged})
+    if queue is None:queue={"cursor":0,"files":["index.html"],"one_link_per_turn":True}
+    queue["files"].append(pid+".html")
+    host.atomic_json(queuepath,queue)
+    all_staged=len(staged)==len(plan["pages"])
+    if all_staged:
+        # All pages have independently checked receipts and real browser QA.
+        for gate,evidence in (("G3_CONTENT",w/"reports"/"content-static.json"),
+                              ("G4_REVIEW",ledgerpath),
+                              ("G5_BROWSER",w/"reports"/"browser.json")):
+            host.record_gate(w,gate,True,evidence=evidence)
+    else:
+        state=host.state(w)
+        for gate in ("G3_CONTENT","G4_REVIEW","G5_BROWSER"):
+            state.setdefault("gates",{})[gate]={"ok":False,
+               "status":"PARTIAL_VERIFIED","issues":[],"evidence":str(ledgerpath)}
+            state.setdefault("verification",{})[gate]="PARTIAL_VERIFIED"
+        host.save(w,state)
+    state=host.state(w)
+    state.setdefault("gates",{})["G6_DELIVERY"]={"ok":False,
+       "status":"PREPARED","issues":[],"evidence":str(queuepath)}
+    state.setdefault("verification",{})["G6_DELIVERY"]="PREPARED"
+    host.save(w,state)
+    return {"page_id":pid,"file":str((out/(pid+".html")).resolve()),
+        "reviewed":True,"browser_pass":True,"pages_staged":len(staged),
+        "total_pages":len(plan["pages"]),"awaiting_delivery_confirmation":True,
+        "new_browser_tests":browser.get("pages_executed_now"),
+        "reused_browser_tests":browser.get("pages_cached")}
+
 
 def check_review_integrity(ws):
     plan=need(ws,"frozen-plan.json");review=need(ws,"reviews/content-review.json")
@@ -225,7 +392,7 @@ def main():
     p=argparse.ArgumentParser(description="Study host-native deterministic runtime (no model API)")
     p.add_argument("command",choices=("bind","ingest","plan-check","accept-plan-review",
       "overview","approve-outline","freeze","draft-check","render","check-content",
-      "accept-content-review","verify","publish","deliver-next","confirm-delivery","hash-json","status"))
+      "accept-content-review","stage-next-page","verify","publish","deliver-next","confirm-delivery","hash-json","status"))
     p.add_argument("--workspace",required=True)
     p.add_argument("--source")
     p.add_argument("--topic",default="")
@@ -267,6 +434,9 @@ def main():
         elif a.command=="accept-content-review":
             if not a.review_file:raise host.GateError("accept-content-review requires --review-file")
             result=accept_content_review(w,a.review_file)
+        elif a.command=="stage-next-page":
+            if not a.review_file:raise host.GateError("stage-next-page requires --review-file")
+            result=stage_next_page(w,a.review_file)
         elif a.command=="verify":result=verify(w)
         elif a.command=="publish":result=publish(w)
         elif a.command=="deliver-next":result=host.next_delivery(w)

@@ -197,9 +197,18 @@ def validate_plan(ws):
     for p in pages:
         refs=p.get("lp_ids",[]);mapped_pages.extend(refs)
         if not refs:issues.append(f"{p.get('page_id')}: empty page")
-        if len(refs)>2:issues.append(f"{p.get('page_id')}: more than 2 independent LPs; split")
-        # Deep mode: a single mechanism/decision/experiment/case per page.
-        if plan.get("mode")=="study-d" and len(refs)>1:issues.append(f"{p.get('page_id')}: deep page merges independent LPs")
+        if plan.get("mode")=="study-d":
+            # Learning Points are atomic coverage/evidence IDs; page grouping is a
+            # separate teaching decision. Keep bounded cognitive load and require
+            # an explicit reason and common learning objective for related LPs.
+            if len(refs)>4:issues.append(f"{p.get('page_id')}: >4 LPs overload one deep page")
+            if len(refs)>1:
+                if not qc.substantial(p.get("grouping_rationale"),35):
+                    issues.append(f"{p.get('page_id')}: grouped LPs require source-grounded grouping rationale")
+                if not qc.substantial(p.get("learning_objective"),20):
+                    issues.append(f"{p.get('page_id')}: grouped LPs require one shared learning objective")
+        elif len(refs)>2:
+            issues.append(f"{p.get('page_id')}: standard Unit holds more than two independent LPs")
     if set(lpids)-set(mapped_pages):issues.append("unassigned LPs: "+str(set(lpids)-set(mapped_pages)))
     if set(mapped_pages)-set(lpids):issues.append("page references unknown LP")
     if len(mapped_pages)!=len(set(mapped_pages)):issues.append("LP duplicated on multiple primary pages")
@@ -274,10 +283,9 @@ def html_page(page,points,draft,source,prev_href,next_href):
     rows.append(f'<h1>{esc(draft["title"])}</h1><p class="lede" data-core="intro">{esc(draft["intro"])}</p>')
     for i,x in enumerate(draft["sections"],1):
         rows.append(f'<section class="card" data-core="section-{i}"><h2>{esc(x["heading"])}</h2><p>{esc(x["text"])}</p></section>')
-    # Tutor-authored reasoning is separately rendered from verbatim source callouts.
-    # The source callout below can never satisfy the authored explanation contract.
-    for item in draft.get("teaching_evidence",[]):
-        rows.append(f'<section class="card" data-teaching-lp="{esc(item["lp_id"])}"><h2>机制与推导</h2>')
+    # Source quotes remain visually separate from the actual tutorial explanation.
+    shared=draft.get("shared_teaching")
+    def render_spine(item):
         rows.append(f'<p data-core="mechanism">{esc(item["core_explanation"])}</p>')
         rows.append('<h3>因果步骤</h3><ol>')
         for step in item["causal_steps"]:rows.append(f'<li>{esc(step)}</li>')
@@ -291,6 +299,16 @@ def html_page(page,points,draft,source,prev_href,next_href):
         for v in item["conditions"]:rows.append(f'<p>{esc(v)}</p>')
         rows.append('<h3>限制与反例</h3>')
         for v in item["limitations"]:rows.append(f'<p>{esc(v)}</p>')
+    if shared:
+        rows.append('<section class="card" data-shared-teaching="true"><h2>共同机制与推导</h2>')
+        render_spine(shared)
+        rows.append('</section>')
+    for item in draft.get("teaching_evidence",[]):
+        rows.append(f'<section class="card" data-teaching-lp="{esc(item["lp_id"])}"><h2>学习点的具体解释</h2>')
+        if shared:
+            rows.append(f'<p data-lp-connection="{esc(item["lp_id"])}">{esc(item["lp_connection"])}</p>')
+        else:
+            render_spine(item)
         for value in item.get("fact_explanations",[]):
             rows.append(f'<p data-authored-fact-id="{esc(value["fact_id"])}">{esc(value["explanation"])}</p>')
         if item.get("experiment"):
@@ -393,56 +411,86 @@ def content_static_check(ws):
     atomic_json(Path(ws)/"reports"/"content-static.json",report)
     return report
 
-def browser_qa(ws):
-    manifest=read_json(Path(ws)/"content-manifest.json")
-    try:from playwright.sync_api import sync_playwright
-    except ImportError:
-        report={"passed":False,"browser_executed":False,"issues":["Playwright unavailable; browser test unverified"]}
-        atomic_json(Path(ws)/"reports"/"browser.json",report);return report
-    issues=[];runs=0
-    class QuietHTTP(SimpleHTTPRequestHandler):
-        def log_message(self, *args): pass
-    server=ThreadingHTTPServer(("127.0.0.1",0),partial(QuietHTTP,directory=str((Path(ws)/"draft-pages").resolve())))
-    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-    urlbase=f"http://127.0.0.1:{server.server_port}/"
-    try:
-      with sync_playwright() as p:
-        browser=p.chromium.launch(headless=True,executable_path=os.environ.get("STUDY_CHROMIUM") or shutil.which("chromium") or shutil.which("google-chrome") or None)
-        for page_info in manifest["pages"]:
-            page=browser.new_page(viewport={"width":390,"height":840})
-            page.set_content((Path(ws)/"draft-pages"/page_info["file"]).read_text(encoding="utf-8"))
-            if page.locator(".card.check button").count()<3:issues.append(page_info["file"]+" missing checkpoint options")
-            else:
-                page.locator(".card.check button[data-correct=true]").click()
-                if not page.locator(".feedback").inner_text().startswith("正确"):issues.append(page_info["file"]+" checkpoint feedback broken")
-            if page.locator(".sim-controls button").count()>1:
-                page.locator(".sim-controls button").last.click()
-                expected=page.locator(".sim-controls button").last.get_attribute("data-observation")
-                if expected not in page.locator(".sim-result").inner_text():issues.append(page_info["file"]+" simulation condition switch broken")
-            if not page.locator("button.reveal").count():issues.append(page_info["file"]+" missing reveal")
-            else:
-                page.locator("button.reveal").first.focus();page.keyboard.press("Enter")
-                if not page.locator(".question .answer").first.is_visible():issues.append(page_info["file"]+" reveal keyboard broken")
-            page.locator("button.reset").click()
-            if page.locator(".question .answer").first.is_visible():issues.append(page_info["file"]+" reset failed")
-            if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):issues.append(page_info["file"]+" horizontal overflow on mobile")
-            page.set_viewport_size({"width":1280,"height":900})
-            if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
-                issues.append(page_info["file"]+" horizontal overflow on desktop")
-            page.close();runs+=1
-            static=browser.new_page(java_script_enabled=False)
-            static.set_content((Path(ws)/"draft-pages"/page_info["file"]).read_text(encoding="utf-8"))
-            if static.locator("[data-core]").count()<3 or not static.locator("[data-fact-id]").count():issues.append(page_info["file"]+" JS-disabled core content incomplete")
-            static.close()
-        browser.close()
-    finally:
-      server.shutdown();server.server_close()
-    report={"passed":not issues,"browser_executed":True,"pages_tested":runs,"issues":issues,
-            "rendered_files":{x["file"]:sha((Path(ws)/"draft-pages"/x["file"]).read_bytes()) for x in manifest["pages"]},
-            "manifest_sha256":sha((Path(ws)/"content-manifest.json").read_bytes()),
-            "viewports_tested":[390,1280],"keyboard_tested":True,
-            "js_disabled_tested":True,"interactive_tested":True}
-    atomic_json(Path(ws)/"reports"/"browser.json",report)
+def browser_qa(ws, force=False):
+    """Incremental real-browser QA keyed by exact generated HTML bytes.
+    Every cache entry originates from a previous successful real Chromium run.
+    """
+    w=Path(ws);manifest=read_json(w/"content-manifest.json")
+    cachepath=w/"reports"/"browser-cache.json"
+    cache=read_json(cachepath) if cachepath.is_file() else {"version":"g5-browser-v3","pages":{}}
+    if cache.get("version")!="g5-browser-v3":cache={"version":"g5-browser-v3","pages":{}}
+    files={x["file"]:sha((w/"draft-pages"/x["file"]).read_bytes())
+           for x in manifest["pages"]}
+    pending=[item for item in manifest["pages"]
+             if force or not (
+                isinstance(cache["pages"].get(files[item["file"]]),dict) and
+                cache["pages"][files[item["file"]]].get("real_browser_pass") is True)]
+    issues=[];tested=0
+    if pending:
+        try:from playwright.sync_api import sync_playwright
+        except ImportError:
+            report={"passed":False,"browser_executed":False,
+                "issues":["Playwright unavailable; browser test unverified"],
+                "pages_cached":len(manifest["pages"])-len(pending),"pages_executed_now":0}
+            atomic_json(w/"reports"/"browser.json",report);return report
+        with sync_playwright() as p:
+            browser=p.chromium.launch(
+                headless=True,executable_path=os.environ.get("STUDY_CHROMIUM")
+                or shutil.which("chromium") or shutil.which("google-chrome") or None)
+            for info in pending:
+                name=info["file"];before=len(issues)
+                page=browser.new_page(viewport={"width":390,"height":840})
+                try:
+                    page.set_content((w/"draft-pages"/name).read_text(encoding="utf-8"))
+                    if page.locator(".card.check button").count()<3:
+                        issues.append(name+" missing checkpoint options")
+                    else:
+                        page.locator(".card.check button[data-correct=true]").click()
+                        if not page.locator(".feedback").inner_text().startswith("正确"):
+                            issues.append(name+" checkpoint feedback broken")
+                    if page.locator(".sim-controls button").count()>1:
+                        page.locator(".sim-controls button").last.click()
+                        expected=page.locator(".sim-controls button").last.get_attribute("data-observation")
+                        if expected not in page.locator(".sim-result").inner_text():
+                            issues.append(name+" simulation condition switch broken")
+                    if not page.locator("button.reveal").count():issues.append(name+" missing reveal")
+                    else:
+                        page.locator("button.reveal").first.focus();page.keyboard.press("Enter")
+                        if not page.locator(".question .answer").first.is_visible():
+                            issues.append(name+" reveal keyboard broken")
+                    page.locator("button.reset").click()
+                    if page.locator(".question .answer").first.is_visible():
+                        issues.append(name+" reset failed")
+                    if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
+                        issues.append(name+" mobile overflow")
+                    page.set_viewport_size({"width":1280,"height":900})
+                    if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
+                        issues.append(name+" desktop overflow")
+                finally:page.close()
+                static=browser.new_page(java_script_enabled=False)
+                try:
+                    static.set_content((w/"draft-pages"/name).read_text(encoding="utf-8"))
+                    if static.locator("[data-core]").count()<3 or not static.locator("[data-fact-id]").count():
+                        issues.append(name+" JS-disabled core incomplete")
+                finally:static.close()
+                tested+=1
+                if len(issues)==before:
+                    cache["pages"][files[name]]={
+                        "real_browser_pass":True,"sha256":files[name],
+                        "tested_by":"Playwright Chromium","tested_at":time.time(),
+                        "checks":["mobile","desktop","keyboard","checkpoint",
+                                  "reset","interaction","js-disabled"]}
+            browser.close()
+        atomic_json(cachepath,cache)
+    report={"passed":not issues,"browser_executed":True,
+        "pages_tested":len(manifest["pages"]),"pages_executed_now":tested,
+        "pages_cached":len(manifest["pages"])-tested,
+        "issues":issues,"rendered_files":files,
+        "manifest_sha256":sha((w/"content-manifest.json").read_bytes()),
+        "viewports_tested":[390,1280],"keyboard_tested":True,
+        "js_disabled_tested":True,"interactive_tested":True,
+        "qa_contract":"g5-browser-v3"}
+    atomic_json(w/"reports"/"browser.json",report)
     return report
 
 def verify(ws):
@@ -610,7 +658,15 @@ def next_delivery(ws):
     w=Path(ws);qpath=w/"delivery-queue.json"
     if not qpath.exists():raise GateError("published delivery queue unavailable")
     q=read_json(qpath);i=q.get("cursor",0)
-    if i>=len(q["files"]):return {"finished":True,"remaining":0}
+    if i>=len(q["files"]):
+        planfile=Path(ws)/"frozen-plan.json"
+        if planfile.is_file():
+            plan=read_json(planfile)
+            if len(q["files"])<len(plan.get("pages",[]))+1:
+                return {"finished":False,"awaiting_next_page_authoring":True,
+                        "pages_staged":max(0,len(q["files"])-1),
+                        "total_pages":len(plan.get("pages",[]))}
+        return {"finished":True,"remaining":0}
     name=q["files"][i];target=(w/"published"/name).resolve()
     if not target.is_file():raise GateError("missing verified delivery file: "+name)
     # The pending receipt is repeatable and cannot silently skip the page.
@@ -650,7 +706,11 @@ def confirm_delivery(ws,file):
     q.pop("pending",None)
     atomic_json(qpath,q)
     st=state(w)
-    finished=q["cursor"]==len(q["files"])
+    planfile=w/"frozen-plan.json"
+    all_authored=True
+    if planfile.is_file():
+        all_authored=(len(q["files"])>=len(read_json(planfile).get("pages",[]))+1)
+    finished=q["cursor"]==len(q["files"]) and all_authored
     st.setdefault("verification",{})["G6_DELIVERY"]="DELIVERY_CONFIRMED" if finished else "IN_PROGRESS"
     st.setdefault("gates",{})["G6_DELIVERY"]={"ok":finished,"status":st["verification"]["G6_DELIVERY"],
         "issues":[],"evidence":str(qpath)}
