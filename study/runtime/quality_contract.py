@@ -76,6 +76,8 @@ def validate_deep_inventory(source,plan):
         if iid not in mapping:issues.append(str(pid)+" references unknown atomic inventory item "+str(iid))
         elif mapping[iid].get("span_id") not in point.get("source_span_ids",[]):
             issues.append(str(pid)+" inventory item is disconnected from LP source span")
+        if iid in mapping and point.get("kind")!=mapping[iid].get("kind"):
+            issues.append(str(pid)+" LP kind disagrees with atomic inventory kind; experiments require experiment review")
         for fact in point.get("required_facts",[]):
             sid=fact.get("span_id")
             if sid not in spans or not source_contains(spans[sid]["text"],fact.get("source_quote")):
@@ -97,6 +99,12 @@ def validate_deep_inventory(source,plan):
         bymarker[marker]=item
         if not item.get("lp_ids") or not set(item.get("lp_ids",[])).issubset(points):
             issues.append("G2 invalid experiment LP mapping "+marker)
+        else:
+            if not any(points[lp].get("kind")=="experiment" and any(
+                 inventory.get("id") in points[lp].get("inventory_ids",[]) and
+                 clean(inventory.get("experiment_id")).replace("–","-").replace(" ","")==marker
+                 for inventory in items if isinstance(inventory,dict)) for lp in item["lp_ids"]):
+                issues.append("G2 experiment register must map to an experiment-specific atomic LP "+marker)
         facets=item.get("facets",{})
         for facet in EXPERIMENT_FACETS:
             d=facets.get(facet,{})
