@@ -49,6 +49,8 @@ def plan_check(ws):
     if rep["issues"]:raise host.GateError("G2 plan structure rejected: "+str(rep["issues"][:12]))
     if root_bound(ws) and not root_bound(ws).get("parent_workspace"):
         learners.sync_plan(ws)
+    rep["plan_sha256"]=digest(plan)
+    rep["source_sha256"]=src["source_sha256"]
     return rep
 
 def accept_plan_review(ws,review_file):
@@ -147,6 +149,14 @@ def publish(ws):
         host.atomic_json(p,data)
     return {"published_dir":str(out)}
 
+def freeze(ws):
+    plan=need(ws,"plan.json")
+    if plan.get("mode")=="study-d":
+        approval=need(ws,"owner-outline-approval.json")
+        if approval.get("approved") is not True or approval.get("plan_sha256")!=digest(plan):
+            raise host.GateError("Study-D outline requires learner's explicit approval of this exact reviewed plan")
+    return host.freeze(ws)
+
 def overview(ws):
     plan_check(ws)
     rev=need(ws,"reviews/plan-review.json")
@@ -186,7 +196,7 @@ def main():
     p=argparse.ArgumentParser(description="Study host-native deterministic runtime (no model API)")
     p.add_argument("command",choices=("bind","ingest","plan-check","accept-plan-review",
       "overview","approve-outline","freeze","draft-check","render","check-content",
-      "accept-content-review","verify","publish","deliver-next","confirm-delivery","status"))
+      "accept-content-review","verify","publish","deliver-next","confirm-delivery","hash-json","status"))
     p.add_argument("--workspace",required=True)
     p.add_argument("--source")
     p.add_argument("--topic",default="")
@@ -212,7 +222,7 @@ def main():
             result=accept_plan_review(w,a.review_file)
         elif a.command=="overview":result=overview(w)
         elif a.command=="approve-outline":result=host.approve_outline(w)
-        elif a.command=="freeze":result=host.freeze(w)
+        elif a.command=="freeze":result=freeze(w)
         elif a.command=="draft-check":
             plan=need(w,"frozen-plan.json")
             if not a.page_id:raise host.GateError("draft-check requires --page-id")
@@ -222,7 +232,7 @@ def main():
             issues=host.validate_content_data([points[x] for x in pg["lp_ids"]],
                                               need(w,"drafts/"+a.page_id+".json"))
             if issues:raise host.GateError(str(issues))
-            result={"page_id":a.page_id,"valid":True}
+            result={"page_id":a.page_id,"valid":True,"draft_sha256":digest(need(w,"drafts/"+a.page_id+".json"))}
         elif a.command=="render":result=render(w)
         elif a.command=="check-content":result=host.content_static_check(w)
         elif a.command=="accept-content-review":
@@ -231,6 +241,9 @@ def main():
         elif a.command=="verify":result=verify(w)
         elif a.command=="publish":result=publish(w)
         elif a.command=="deliver-next":result=host.next_delivery(w)
+        elif a.command=="hash-json":
+            if not a.file:raise host.GateError("hash-json requires --file")
+            result={"file":str(Path(a.file).resolve()),"sha256":digest(load(a.file))}
         elif a.command=="confirm-delivery":
             if not a.file:raise host.GateError("confirm-delivery requires --file")
             result=confirm_delivery(w,a.file)
