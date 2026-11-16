@@ -524,7 +524,7 @@ def demo(ws):
     pts=[]
     for i,s in enumerate(src["segments"],1):
         pts.append({"lp_id":f"LP{i:04}","title":f"学习点 {i}: {s['heading']}","kind":"mechanism","goal":"理解来源内容的机制与条件","source_span_ids":[s["id"]],"prerequisites":[],
-                    "required_facts":[{"id":f"F{i:04}-01","text":s["text"],"span_id":s["id"]}],
+                    "required_facts":[{"id":f"F{i:04}-01","text":s["text"],"span_id":s["id"],"source_quote":s["text"][:90]}],
                     "inventory_ids":[f"I{i:04}"]})
     pages=[{"page_id":f"P{i:03}","lp_ids":[p["lp_id"]],"title":p["title"]} for i,p in enumerate(pts,1)]
     inventory=[{"id":f"I{i:04}","kind":"mechanism","span_id":seg["id"],
