@@ -218,6 +218,8 @@ def freeze(ws):
     else:
         rev=read_json(rpath); p=read_json(Path(ws)/"plan.json")
         if not rev.get("approved"):issues.append("independent plan reviewer rejected")
+        if rev.get("quality_audits_validated") is not True:
+            issues.append("G2 atomicity/source semantic review receipt missing")
         if rev.get("plan_sha256")!=sha(json.dumps(p,sort_keys=True,ensure_ascii=False)):issues.append("plan changed after reviewer")
     plan=read_json(Path(ws)/"plan.json")
     src=read_json(Path(ws)/"source.json")
@@ -347,7 +349,7 @@ def build_pages(ws, only_missing=True):
         prev="index.html" if i==0 else pages[i-1]["page_id"]+".html"
         nxt="index.html" if i==len(pages)-1 else pages[i+1]["page_id"]+".html"
         h=html_page(page,points,draft,source,prev,nxt)
-        write_text(out/pn,h); contents.append({"page_id":page["page_id"],"file":pn,"lp_ids":page["lp_ids"],"draft_sha256":sha(json.dumps(draft,ensure_ascii=False,sort_keys=True))})
+        write_text(out/pn,h); contents.append({"page_id":page["page_id"],"file":pn,"lp_ids":page["lp_ids"],"draft_sha256":sha(json.dumps(draft,ensure_ascii=False,sort_keys=True)), "rendered_sha256":sha(h)})
     idx=['<h1>Study V5 · 深度学习目录</h1><p>按知识依赖逐页阅读。每页包含完整解释、隐藏小问题和独立 Checkpoint。</p>']
     for p in pages:idx.append(f'<div class="card"><a href="{esc(p["page_id"])}.html">{esc(p["page_id"])} · {esc(p["title"])}</a></div>')
     write_text(out/"index.html",'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+CSS+'</style><main>'+"".join(idx)+'</main></html>')
@@ -367,6 +369,13 @@ def content_static_check(ws):
         draft=read_json(draftpath)
         related=[pmap[lp] for lp in info["lp_ids"]]
         issues.extend(info["file"]+": "+reason for reason in validate_content_data(related,draft))
+        if sha(json.dumps(draft,ensure_ascii=False,sort_keys=True))!=info.get("draft_sha256"):
+            issues.append(info["file"]+" source draft changed since HTML rendering")
+        if info.get("rendered_sha256") and sha(page.read_bytes())!=info["rendered_sha256"]:
+            issues.append(info["file"]+" HTML bytes changed since rendering")
+        for text in qc.authored_text(draft):
+            if qc.substantial(text,35) and esc(text) not in h:
+                issues.append(info["file"]+" authored explanatory text absent from HTML")
         for id in info["lp_ids"]:
             if f'data-teaching-lp="{esc(id)}"' not in h:
                 issues.append(info["file"]+" missing tutor-authored mechanism for "+id)
@@ -380,6 +389,7 @@ def content_static_check(ws):
         for link in re.findall(r'href="([^"]+)"',h):
             if link.endswith('.html') and not (pages_dir/link).exists():issues.append(info["file"]+" broken link "+link)
     report={"status":"pass" if not issues else "fail","issues":issues,"page_count":len(manifest["pages"])}
+    report["manifest_sha256"]=sha((Path(ws)/"content-manifest.json").read_bytes())
     atomic_json(Path(ws)/"reports"/"content-static.json",report)
     return report
 
@@ -424,7 +434,9 @@ def browser_qa(ws):
         browser.close()
     finally:
       server.shutdown();server.server_close()
-    report={"passed":not issues,"browser_executed":True,"pages_tested":runs,"issues":issues}
+    report={"passed":not issues,"browser_executed":True,"pages_tested":runs,"issues":issues,
+            "rendered_files":{x["file"]:sha((Path(ws)/"draft-pages"/x["file"]).read_bytes()) for x in manifest["pages"]},
+            "manifest_sha256":sha((Path(ws)/"content-manifest.json").read_bytes())}
     atomic_json(Path(ws)/"reports"/"browser.json",report)
     return report
 
@@ -437,6 +449,18 @@ def verify(ws):
     if not revpath.exists():record_gate(ws,"G4_REVIEW",False,["independent content review missing"])
     rev=read_json(revpath)
     if not rev.get("approved") or any(x.get("issues") for x in rev.get("pages",[])):record_gate(ws,"G4_REVIEW",False,["independent content review rejected"]+[str(x) for x in rev.get("pages",[]) if not x.get("approved")][:5])
+    plan=read_json(Path(ws)/"frozen-plan.json");source=read_json(Path(ws)/"source.json")
+    lookup={p["lp_id"]:p for p in plan["points"]}
+    page_map={p["page_id"]:p for p in plan["pages"]}
+    if rev.get("quality_audits_validated") is not True or len(rev.get("pages",[]))!=len(page_map):
+        record_gate(ws,"G4_REVIEW",False,["semantic reviewer receipt missing or incomplete"])
+    for item in rev["pages"]:
+        if item.get("quality_audits_validated") is not True or item.get("page_id") not in page_map:
+            record_gate(ws,"G4_REVIEW",False,["per-page semantic audit absent"])
+        draft=read_json(Path(ws)/"drafts"/(item["page_id"]+".json"))
+        relevant=[lookup[lp] for lp in page_map[item["page_id"]]["lp_ids"]]
+        semantic=qc.validate_content_review_audits(item,relevant,draft,source)
+        if semantic:record_gate(ws,"G4_REVIEW",False,semantic)
     # Ensure the content under review has not changed after a reviewer attested.
     for item in rev.get("pages",[]):
         draft=read_json(Path(ws)/"drafts"/(item["page_id"]+".json"))
@@ -446,6 +470,11 @@ def verify(ws):
     b=browser_qa(ws)
     if not b.get("passed") or b.get("browser_executed") is not True:
         record_gate(ws,"G5_BROWSER",False,b.get("issues") or ["real browser QA not executed"])
+    manifest=read_json(Path(ws)/"content-manifest.json")
+    if b.get("manifest_sha256")!=sha((Path(ws)/"content-manifest.json").read_bytes()) or any(
+       b.get("rendered_files",{}).get(x["file"])!=sha((Path(ws)/"draft-pages"/x["file"]).read_bytes())
+       for x in manifest["pages"]):
+        record_gate(ws,"G5_BROWSER",False,["browser receipt does not bind exact generated HTML bytes"])
     record_gate(ws,"G5_BROWSER",True,evidence=Path(ws)/"reports"/"browser.json")
 
 def publish(ws):
@@ -465,8 +494,13 @@ def publish(ws):
         draft=read_json(Path(ws)/"drafts"/(page["page_id"]+".json"))
         if sha(json.dumps(draft,sort_keys=True,ensure_ascii=False))!=page.get("draft_sha256"):
             record_gate(ws,"G4_REVIEW",False,["stale draft review "+page["page_id"]])
-    dst=Path(ws)/"published";dst.mkdir(exist_ok=True)
     manifest=read_json(Path(ws)/"content-manifest.json")
+    b=read_json(Path(ws)/"reports"/"browser.json")
+    if b.get("manifest_sha256")!=sha((Path(ws)/"content-manifest.json").read_bytes()) or any(
+       b.get("rendered_files",{}).get(x["file"])!=sha((Path(ws)/"draft-pages"/x["file"]).read_bytes())
+       for x in manifest["pages"]):
+        record_gate(ws,"G5_BROWSER",False,["published files differ from inspected browser QA bytes"])
+    dst=Path(ws)/"published";dst.mkdir(exist_ok=True)
     files=["index.html"]+[item["file"] for item in manifest["pages"]]
     for name in files:
         src=Path(ws)/"draft-pages"/name
@@ -529,8 +563,8 @@ def approve_outline(ws):
     p=read_json(Path(ws)/"plan.json")
     r=read_json(Path(ws)/"reviews"/"plan-review.json")
     expected=sha(json.dumps(p,sort_keys=True,ensure_ascii=False))
-    if not r.get("approved") or r.get("plan_sha256")!=expected:
-        raise GateError("independent reviewer must approve same plan first")
+    if not r.get("approved") or r.get("plan_sha256")!=expected or r.get("quality_audits_validated") is not True:
+        raise GateError("independent atomicity/source reviewer must approve same plan first")
     atomic_json(Path(ws)/"owner-outline-approval.json",{"approved":True,"plan_sha256":expected,"actor":"user-approved-via-host"})
     return {"approved":True,"plan_sha256":expected}
 
