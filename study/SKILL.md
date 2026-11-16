@@ -77,9 +77,12 @@ reviewer receipts, Windows examples and continuation behavior.
 
 ## Strict deep-study quality contract (mandatory)
 
+- G2/G4 reviewer records may reuse verified unchanged scope hashes. Author/review only changed batches or pages; any change to a reviewed scope invalidates its cache.
+
+
 Load `references/quality-gates-v6.2.md` before any /study-d planning,
 authoring or review. G2 requires a complete atomic `source_inventory`,
-one independently teachable inventory item per deep LP/page, exact source
+one independently teachable inventory item per LP; group up to four tightly related LPs into a page with a shared learning goal and source-grounded reason; exact source
 quotes per fact, explicit mapping of numbered experiments and thought questions,
 and real reviewer audits per LP and source span. User approval is required for
 the reviewed fine-grained plan before content drafting. Neither a requested
@@ -89,8 +92,8 @@ G3 requires `teaching_evidence` per LP: original mechanism explanation,
 causal steps, a worked example, applicability/limits, per-fact explanations,
 experimental methods/results where relevant, and a checkpoint reasoning rubric.
 Copied source facts or a three-paragraph generic summary cannot count as
-teaching. G4 requires a reviewer-specific quote/reason/coverage audit for
-every fact and pedagogical dimension, tied to exact draft hashes. G5 checks
+teaching. G4 supports compact per-fact source checks, focused risk reviews and page-level reviewer evidence for
+every fact and pedagogical dimension, tied to exact draft hashes. G5 reuses real browser results for unchanged HTML; it checks
 mobile/desktop, keyboard, JS-off and interaction behavior on the exact HTML
 bytes. G6 stays PREPARED until real learner-visible delivery confirmation.
 Legacy pages without this contract stay UNVERIFIED and are preserved for
