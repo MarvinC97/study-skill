@@ -101,7 +101,9 @@ def content_review(plan,source,drafts):
 def browser_receipt(ws):
     w=Path(ws);manifest=host.read_json(w/"content-manifest.json")
     result={"passed":True,"browser_executed":True,"pages_tested":len(manifest["pages"]),
-      "issues":[],"manifest_sha256":host.sha((w/"content-manifest.json").read_bytes()),
+      "issues":[],"viewports_tested":[390,1280],"keyboard_tested":True,
+      "js_disabled_tested":True,"interactive_tested":True,
+      "manifest_sha256":host.sha((w/"content-manifest.json").read_bytes()),
       "rendered_files":{x["file"]:host.sha((w/"draft-pages"/x["file"]).read_bytes()) for x in manifest["pages"]}}
     host.atomic_json(w/"reports"/"browser.json",result)
     return result
