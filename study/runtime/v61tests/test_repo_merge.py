@@ -4,7 +4,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'scripts'))
 import merge_into_repo as m
 
 class RepoOverlayTest(unittest.TestCase):
-    def test_preserves_v35_core_bytes_and_adds_v61_runtime(self):
+    def test_preserves_v35_core_bytes_and_adds_v62_runtime(self):
         with tempfile.TemporaryDirectory() as t:
             repo=Path(t)/'repo'; repo.mkdir()
             files={'study/SKILL.md':'name: study\nold entry\n',
@@ -24,7 +24,7 @@ class RepoOverlayTest(unittest.TestCase):
             for rel,h in before.items():self.assertEqual(m.sha(repo/rel),h,rel)
             self.assertTrue((repo/'study/runtime/v6_agent.py').is_file())
             self.assertTrue((repo/'study/runtime/v61_learner.py').is_file())
-            self.assertIn('V6.1', (repo/'study/SKILL.md').read_text())
-            self.assertIn('V6.1', (repo/'README.md').read_text())
+            self.assertIn('V6.2', (repo/'study/SKILL.md').read_text())
+            self.assertIn('V6.2', (repo/'README.md').read_text())
 
 if __name__=='__main__':unittest.main()
