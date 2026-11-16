@@ -23,7 +23,10 @@ def substantial(value,minimum=32):
 
 
 def source_contains(source,quote):
-    return substantial(quote,12) and clean(quote) in clean(source)
+    # A short section heading may be the entire span; require the whole quote
+    # rather than demanding more characters than the original source contains.
+    original=clean(source);excerpt=clean(quote)
+    return len(excerpt)>=min(12,len(original)) and excerpt in original
 
 
 def experiment_markers(source):
