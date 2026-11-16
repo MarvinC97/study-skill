@@ -419,7 +419,63 @@ def validate_plan_review_audits(review,source,plan,cache=None):
     return issues
 
 
+def validate_compact_content_review(entry,points,draft,source):
+    """A short source/fact ledger plus one substantive review per dimension.
+    Risky cases still require their own focused reviewer explanation.
+    """
+    issues=[];spans={x["id"]:x for x in source.get("segments",[])}
+    factmap={f["id"]:f for p in points for f in p.get("required_facts",[])}
+    authored={}
+    for record in draft.get("teaching_evidence",[]):
+        if not isinstance(record,dict):continue
+        for item in record.get("fact_explanations",[]):
+            if isinstance(item,dict):authored[item.get("fact_id")]=clean(item.get("explanation"))
+    checks=entry.get("fact_checks",[])
+    if not isinstance(checks,list):checks=[]
+    if len(checks)!=len(factmap) or {a.get("fact_id") for a in checks if isinstance(a,dict)}!=set(factmap):
+        issues.append("G4 compact source/fact audit incomplete")
+    for check in checks:
+        if not isinstance(check,dict):continue
+        fid=check.get("fact_id")
+        if fid not in factmap:continue
+        f=factmap[fid];sid=f.get("span_id")
+        if (check.get("grounded") is not True or check.get("explained") is not True or
+            check.get("source_span_id")!=sid or sid not in spans or
+            clean(check.get("source_quote"))!=clean(f.get("source_quote")) or
+            not source_contains(spans[sid]["text"],check.get("source_quote"))):
+            issues.append("G4 source fidelity failed for "+fid)
+        quote=clean(check.get("draft_quote"))
+        if not substantial(quote,35) or quote not in authored.get(fid,""):
+            issues.append("G4 missing tutor-authored fact evidence for "+fid)
+    dimensions=entry.get("quality_dimensions",[])
+    needed=set(REVIEW_DIMENSIONS)
+    if any(p.get("kind")=="experiment" for p in points):needed.add("experiment_methods")
+    if not isinstance(dimensions,list):dimensions=[]
+    if len(dimensions)!=len(needed) or {d.get("dimension") for d in dimensions if isinstance(d,dict)}!=needed:
+        issues.append("G4 compact pedagogical dimension review incomplete")
+    for a in dimensions:
+        if not isinstance(a,dict):continue
+        quote=clean(a.get("draft_quote"))
+        if (a.get("passed") is not True or not substantial(a.get("reason"),45) or
+            not substantial(quote,35) or
+            not any(quote in x for x in dimension_text(draft,a.get("dimension")))):
+            issues.append("G4 weak dimension audit "+str(a.get("dimension")))
+    risky={p["lp_id"] for p in points if p.get("kind") in
+           ("experiment","algorithm","failure_case","boundary")}
+    audits=entry.get("risk_audits",[])
+    if not isinstance(audits,list):audits=[]
+    if len(audits)!=len(risky) or {a.get("lp_id") for a in audits if isinstance(a,dict)}!=risky:
+        issues.append("G4 risk-specific semantic review missing")
+    for a in audits:
+        if not isinstance(a,dict):continue
+        if a.get("passed") is not True or not substantial(a.get("reason"),50):
+            issues.append("G4 risky LP review missing concrete evidence "+str(a.get("lp_id")))
+    return issues
+
+
 def validate_content_review_audits(entry,points,draft,source):
+    if entry.get("review_contract")=="g4-compact-v3":
+        return validate_compact_content_review(entry,points,draft,source)
     issues=[];source_spans={x["id"]:x for x in source.get("segments",[])}
     factmap={f["id"]:f for p in points for f in p.get("required_facts",[])}
     actual=authored_text(draft)
