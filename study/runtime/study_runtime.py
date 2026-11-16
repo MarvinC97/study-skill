@@ -426,6 +426,9 @@ def browser_qa(ws):
             page.locator("button.reset").click()
             if page.locator(".question .answer").first.is_visible():issues.append(page_info["file"]+" reset failed")
             if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):issues.append(page_info["file"]+" horizontal overflow on mobile")
+            page.set_viewport_size({"width":1280,"height":900})
+            if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
+                issues.append(page_info["file"]+" horizontal overflow on desktop")
             page.close();runs+=1
             static=browser.new_page(java_script_enabled=False)
             static.set_content((Path(ws)/"draft-pages"/page_info["file"]).read_text(encoding="utf-8"))
@@ -436,7 +439,9 @@ def browser_qa(ws):
       server.shutdown();server.server_close()
     report={"passed":not issues,"browser_executed":True,"pages_tested":runs,"issues":issues,
             "rendered_files":{x["file"]:sha((Path(ws)/"draft-pages"/x["file"]).read_bytes()) for x in manifest["pages"]},
-            "manifest_sha256":sha((Path(ws)/"content-manifest.json").read_bytes())}
+            "manifest_sha256":sha((Path(ws)/"content-manifest.json").read_bytes()),
+            "viewports_tested":[390,1280],"keyboard_tested":True,
+            "js_disabled_tested":True,"interactive_tested":True}
     atomic_json(Path(ws)/"reports"/"browser.json",report)
     return report
 
@@ -471,6 +476,9 @@ def verify(ws):
     if not b.get("passed") or b.get("browser_executed") is not True:
         record_gate(ws,"G5_BROWSER",False,b.get("issues") or ["real browser QA not executed"])
     manifest=read_json(Path(ws)/"content-manifest.json")
+    if b.get("viewports_tested")!=[390,1280] or any(
+       b.get(k) is not True for k in ("keyboard_tested","js_disabled_tested","interactive_tested")):
+        record_gate(ws,"G5_BROWSER",False,["interactive/mobile/desktop/keyboard/JS-off checks incomplete"])
     if b.get("manifest_sha256")!=sha((Path(ws)/"content-manifest.json").read_bytes()) or any(
        b.get("rendered_files",{}).get(x["file"])!=sha((Path(ws)/"draft-pages"/x["file"]).read_bytes())
        for x in manifest["pages"]):
