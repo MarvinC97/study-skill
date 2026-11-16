@@ -1,58 +1,59 @@
-"""Real manager/Host loop with TEST DOUBLE model outputs; does not measure LLM quality."""
+"""Host-written standard Unit integration: no standalone model client."""
 from pathlib import Path
-import sys,tempfile,unittest,json,os
+import os,sys,tempfile,unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).parents[1]))
-from v6_agent import Manager
-import study_runtime as v5
+import study_runtime as host
+import v6_agent as agent
+import v6_ops
+import v61_learner as learners
 
-class AgentIntegration(unittest.TestCase):
- def test_complete_tool_loop_with_mocked_model(self):
-  stats={'manager_decisions':0,'planner':0,'tutor':0,'plan_review':0,'content_review':0}
-  def model(messages,role='writer'):
-   sysmsg=messages[0]['content']
-   obj=json.loads(messages[1]['content'])
-   if 'autonomous study Manager Agent' in sysmsg:
-    stats['manager_decisions']+=1
-    return {'action':obj['allowed_actions'][0], 'args':{}, 'reason':'next action selected from current verified state'}
-   if 'source-fidelity Knowledge Planner' in sysmsg:
-    stats['planner']+=1
-    return {'points':[{'title':'机制 '+sp['id'],'kind':'mechanism','goal':'理解当前来源机制与应用条件',
-      'source_span_ids':[sp['id']],'required_facts':[{'id':'tmp1','text':sp['text'],'span_id':sp['id']}],
-      'prerequisites':[]} for sp in obj['source_spans']]}
-   if 'INDEPENDENT syllabus reviewer' in sysmsg:
-    stats['plan_review']+=1;return {'approved':True,'issues':[]}
-   if 'excellent beginner-friendly Chinese technical tutor' in sysmsg:
-    stats['tutor']+=1
-    ids=[f['id'] for record in obj['evidence'] for f in record['facts']]
-    return {'title':obj['page']['title'],'intro':'这个示例用于检查智能体如何逐步完成来源读取、知识拆分和内容构建。',
-      'sections':[{'heading':'来源与学习目标','text':'我们先核对原文片段，说明这些片段提供了什么信息，以及为什么需要保持来源证据。'},
-       {'heading':'机制与信息流','text':'系统先登记来源哈希，再把每个重要的事实写成内容合同，然后按合同生成学习页面。'},
-       {'heading':'实际例子与限制','text':'这里是测试替身提供的课件。可以验证脚本与质量门禁是否运行，但无法证明模型生成的课程具有教学质量。'}],
-       'visual':{'kind':'flow','title':'来源到课件','relation':'证据依次传递','nodes':[{'label':'原文','meaning':'锚点和哈希'},{'label':'合同','meaning':'必需事实'},{'label':'HTML','meaning':'可见呈现'}]},
-       'simulation':{'kind':'preset','title':'来源变更','states':[{'label':'未变','observation':'哈希一致','explanation':'允许使用规划'},{'label':'变更','observation':'哈希不一致','explanation':'重新核对规划'}]},
-       'mini_questions':[{'question':'如何知道来源改变？','answer':'检查 SHA256。'}],
-       'checkpoint':{'question':'什么能证明来源没有静默改变？','options':['页面颜色','SHA256 与源锚点','页面字数'],'correct_index':1,'feedback':'检查哈希和锚点。'},
-       'represented_fact_ids':ids}
-   if 'independent technical and pedagogical reviewer' in sysmsg:
-    stats['content_review']+=1
-    ids=[f['id'] for p in obj['points'] for f in p['required_facts']]
-    return {'approved':True,'issues':[],'checked_fact_ids':ids}
-   raise AssertionError('unexpected system prompt: '+sysmsg[:110])
-  with tempfile.TemporaryDirectory() as td:
-   source=Path(__file__).parents[1]/'fixtures'/'training-mini.md'
-   with patch.object(v5,'llm',side_effect=model), patch.dict(os.environ,{'STUDY_CHROMIUM':'/usr/bin/chromium'}):
-    m=Manager(Path(td)/'run',source=str(source),mode='study-d',policy='live',max_steps=40)
-    result=m.run()
-    self.assertEqual(result['status'],'published',result)
-    work=Path(result['workspace'])
-    self.assertTrue((work/'published/index.html').exists())
-    self.assertTrue((work/'delivery-queue.json').exists())
-    self.assertTrue((work/'reports/browser.json').exists())
-    q=v5.next_delivery(work)
-    self.assertTrue(q['one_link_this_turn']);self.assertEqual(q['index'],1)
-    self.assertGreater(stats['manager_decisions'],5)
-    self.assertGreaterEqual(stats['planner'],1);self.assertGreaterEqual(stats['plan_review'],1)
-    self.assertGreaterEqual(stats['tutor'],1);self.assertGreaterEqual(stats['content_review'],1)
-    self.assertGreaterEqual(len(m.st['steps']),9)
+class HostOpsIntegration(unittest.TestCase):
+ def test_standard_unit_and_profile_use_host_artifacts(self):
+  with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{},clear=True):
+   root=Path(td);w=root/'course'
+   agent.bind(w,'Marvin',root/'Study',course_id='book-chapter-8',
+     scope='Chapter 8',source=str(root/'book.md'))
+   source=root/'source.md';source.write_text('# Topic\nA fact about training and its condition.\n',encoding='utf-8')
+   host.ingest(w,source);src=host.read_json(w/'source.json')
+   points=[]
+   for i,span in enumerate(src['segments'],1):
+    points.append({'lp_id':f'LP{i:04d}','title':'Training',
+     'goal':'Explain the actual mechanism','source_span_ids':[span['id']],
+     'required_facts':[{'id':f'F{i:04d}','text':span['text'],'span_id':span['id']}],
+     'prerequisites':[]})
+   plan={'source_sha256':src['source_sha256'],'mode':'study','points':points,
+         'pages':[{'page_id':'U001','title':'Training Unit',
+          'lp_ids':[p['lp_id'] for p in points]}]}
+   host.atomic_json(w/'plan.json',plan)
+   self.assertEqual(agent.plan_check(w)['status'],'pass')
+   review={'review_mode':'isolated_host_agent','reviewer_context_id':'R','writer_context_id':'W',
+    'source_sha256':src['source_sha256'],'plan_sha256':agent.digest(plan),
+    'checked_span_ids':[x['id'] for x in src['segments']],'approved':True,'issues':[]}
+   revfile=w/'input-review.json';host.atomic_json(revfile,review)
+   agent.accept_plan_review(w,revfile)
+   self.assertTrue(Path(agent.overview(w)['overview_file']).exists())
+   learners.update_intake(w,goal='Learn training')
+   learners.update_intake(w,map_reviewed=True)
+   learners.update_intake(w,familiarity='Beginner')
+   draft={'title':'Training Unit','intro':'A structured training lesson grounded in source.',
+    'sections':[{'heading':'Motivation','text':'Explain why this source concept matters for practical systems.'},
+      {'heading':'Mechanism','text':'Explain the input process and output with source conditions.'},
+      {'heading':'Example','text':'A concrete source-backed example illustrates expected behaviour.'}],
+    'mini_questions':[{'question':'Why?','answer':'The source gives the condition.'}]*len(points),
+    'checkpoint':{'question':'Which evidence?','options':['A','B','C'],'correct_index':1,'feedback':'Read source.'},
+    'represented_fact_ids':[f['id'] for p in points for f in p['required_facts']]}
+   host.atomic_json(w/'drafts'/'U001.json',draft)
+   artifact={'points':points,'draft':draft}
+   receipt={'review_mode':'isolated_host_agent','reviewer_context_id':'R2','writer_context_id':'W2',
+       'artifact_sha256':agent.digest(artifact),'checked_fact_ids':draft['represented_fact_ids'],
+       'approved':True,'issues':[]}
+   host.atomic_json(w/'reviews'/'U001-unit-review.json',receipt)
+   with patch.object(v6_ops,'browser_check',return_value={'passed':True}):
+    prepared=v6_ops.next_unit(w)
+   self.assertTrue(prepared['awaiting_confirmation'])
+   self.assertEqual(host.state(w)['current_unit'],0)
+   out=v6_ops.confirm_unit_delivery(w,prepared['file'])
+   self.assertEqual(out['unit'],1)
+   self.assertEqual(host.state(w)['current_unit'],1)
 if __name__=='__main__':unittest.main()
