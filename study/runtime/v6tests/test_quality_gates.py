@@ -98,6 +98,23 @@ class DeepGateRegression(unittest.TestCase):
   with self.assertRaises(host.GateError):
    agent.accept_content_review(self.w,reviewpath)
 
+ def test_one_generic_review_quote_cannot_pass_all_dimensions(self):
+  # A rubber-stamp review repeating one explanatory quote for every dimension fails.
+  rp=self.w/"plan-review.json";host.atomic_json(rp,qf.plan_review(self.plan,self.source))
+  agent.accept_plan_review(self.w,rp);host.approve_outline(self.w);agent.freeze(self.w)
+  drafts={}
+  for page in self.plan["pages"]:
+   point=next(p for p in self.points if p["lp_id"]==page["lp_ids"][0])
+   d=qf.draft(point);drafts[page["page_id"]]=d
+   host.atomic_json(self.w/"drafts"/(page["page_id"]+".json"),d)
+  receipt=qf.content_review(self.plan,self.source,drafts)
+  rubber_stamp=receipt["pages"][0]["fact_audits"][0]["draft_quote"]
+  for dimension in receipt["pages"][0]["quality_dimensions"]:
+   dimension["draft_quote"]=rubber_stamp
+  path=self.w/"rubber-stamped-review.json";host.atomic_json(path,receipt)
+  with self.assertRaises(host.GateError):
+   agent.accept_content_review(self.w,path)
+
  def test_unchanged_review_receipt_cannot_approve_changed_draft(self):
   p=self.w/"plan-review.json";host.atomic_json(p,qf.plan_review(self.plan,self.source))
   agent.accept_plan_review(self.w,p);host.approve_outline(self.w);agent.freeze(self.w)
