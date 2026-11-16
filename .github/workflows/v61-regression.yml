@@ -1,7 +1,7 @@
-name: Study Host-Native regression
+name: Study V6.3 dual-mode regression
 on:
   push:
-    branches: [fix/v6.2-g2-granularity-incremental]
+    branches: [feat/v6.3-standard-unit-vs-deep-mode]
   pull_request:
     paths:
       - 'study/runtime/**'
@@ -26,6 +26,8 @@ jobs:
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_quality_gates.py' -v
       - name: Grouped LPs, scoped G2 reviews and compact G4 cache
         run: python -m unittest discover -s study/runtime/v6tests -p 'test_incremental_quality.py' -v
+      - name: Standard Study Unit grouping versus deep focused-page regression
+        run: python -m unittest discover -s study/runtime/v6tests -p 'test_study_modes.py' -v
       - name: Install deterministic browser QA dependencies
         run: |
           python -m pip install playwright pyyaml beautifulsoup4

@@ -8,6 +8,7 @@ import v6_agent as agent
 import v6_ops
 import v61_learner as learners
 import quality_fixture as qf
+from test_incremental_quality import shared_draft
 
 class HostOpsIntegration(unittest.TestCase):
  def test_standard_unit_and_profile_use_host_artifacts(self):
@@ -25,24 +26,37 @@ class HostOpsIntegration(unittest.TestCase):
      'prerequisites':[]})
    plan={'source_sha256':src['source_sha256'],'mode':'study','points':points,
          'pages':[{'page_id':'U001','title':'Training Unit',
-          'lp_ids':[p['lp_id'] for p in points]}]}
+          'lp_ids':[p['lp_id'] for p in points],
+          'learning_objective':'Explain the relationship between the input and its training condition',
+          'grouping_relation':'causal_chain',
+          'shared_case':'An agent observes the training condition, evaluates the generated output, and compares a changed input.',
+          'grouping_rationale':'These source anchors explain two connected stages of one training mechanism and share an observable result.'}]}
    host.atomic_json(w/'plan.json',plan)
    self.assertEqual(agent.plan_check(w)['status'],'pass')
    review={'review_mode':'isolated_host_agent','reviewer_context_id':'R','writer_context_id':'W',
     'source_sha256':src['source_sha256'],'plan_sha256':agent.digest(plan),
     'checked_span_ids':[x['id'] for x in src['segments']],'approved':True,'issues':[]}
+   if len(points)>1:
+    review['unit_group_audits']=[{
+     'page_id':'U001','checked_lp_ids':[p['lp_id'] for p in points],
+     'coherent':True,'shared_case_ok':True,'cognitive_load_ok':True,
+     'reason':'The connected training stages form one causal process and can be explained with the same input and changed-condition example.'}]
    revfile=w/'input-review.json';host.atomic_json(revfile,review)
    agent.accept_plan_review(w,revfile)
    self.assertTrue(Path(agent.overview(w)['overview_file']).exists())
    learners.update_intake(w,goal='Learn training')
    learners.update_intake(w,map_reviewed=True)
    learners.update_intake(w,familiarity='Beginner')
-   draft=qf.draft(points[0],"Training Unit")
+   draft=shared_draft(points) if len(points)>1 else qf.draft(points[0],"Training Unit")
    host.atomic_json(w/'drafts'/'U001.json',draft)
    artifact={'points':points,'draft':draft}
    receipt={'review_mode':'isolated_host_agent','reviewer_context_id':'R2','writer_context_id':'W2',
        'artifact_sha256':agent.digest(draft),'checked_fact_ids':draft['represented_fact_ids'],
        'approved':True,'issues':[]}
+   if len(points)>1:
+    receipt['unit_coherence']={'coherent':True,'checked_lp_ids':[p['lp_id'] for p in points],
+      'shared_case_ok':True,'cognitive_load_ok':True,
+      'reason':'All LPs belong to the same causal teaching flow, and one complete example verifies the combined Unit objective.'}
    host.atomic_json(w/'reviews'/'U001-unit-review.json',receipt)
    with patch.object(v6_ops,'browser_check',return_value={'passed':True}):
     prepared=v6_ops.next_unit(w)

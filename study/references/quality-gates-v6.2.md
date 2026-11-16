@@ -1,4 +1,8 @@
-# Study V6.2 · Strict G2–G6 Quality Contracts
+# Study V6.2+ · Strict G2–G6 Quality Contracts
+
+This file defines the strict deep-study gates. In Study V6.3, mode-specific
+page grouping, cognitive load and teaching obligations are defined in
+`study-modes.md`; load that file before either /study or /study-d.
 
 This file is mandatory before executing /study-d. The Codex/DSH host remains
 the model, planner, tutor and reviewer dispatcher. All Python checks are

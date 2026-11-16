@@ -10,10 +10,10 @@ Its goal is **complete coverage without visual overload**.
 
 It must preserve the current Study source, source anchors, learner state, and return point. Use the one per-course `study-state.json` contract in `../schemas/learning-point.md`. Map the information-point checklist and pages to stable LP IDs, retaining English source terminology/code with Chinese explanation. Artifact generation, page delivery and learner understanding are independent.
 
-## V6.2 strict preflight (overrides earlier general guidance)
+## V6.3 deep-study preflight (overrides earlier general guidance)
 
-Before selecting a page count, run the atomic source inventory described in
-`quality-gates-v6.2.md`. A deep LP must have one focused teachable objective;
+Before selecting page count, read `study-modes.md`, then build the complete
+atomic source inventory in `quality-gates-v6.2.md`. A deep LP must have one focused teachable objective;
 independent experiments, algorithms, decisions and failure cases each receive
 separate LP identities. Up to four tightly related LPs can share a coherent
 teaching page with an explicitly justified common goal and a separately reviewed
@@ -242,7 +242,10 @@ A pending-branch `/study-n` must be resolved deliberately under `state-commands.
 
 ## 9. Output behavior
 
-When file/HTML artifact creation is supported, generate the complete module first and finish coverage verification before surfacing page links.
+After user approval of the independently reviewed full G2 outline, generate
+content pages either one at a time with `stage-next-page` or as a complete
+batch. G3–G5 must pass for each page before it is presented to the learner;
+complete-module verification remains pending until all pages are accepted.
 
 Create one folder containing all module pages and make `index.html` the navigation entry point. The HTML files may remain together in one folder or bundle so their internal links work.
 
@@ -277,13 +280,14 @@ The learner should experience each page as a separate learning step/session, whi
 
 Generation phase:
 
-`information checklist → page plan → generate all HTML → coverage verification`
+`source inventory → LP/page plan → G2 independent review → user approval → per-page or batch G3–G5 QA`
 
 Delivery phase:
 
 `index session → page 01 session → page 02 session → ... → final page session`
 
-Never start link delivery before coverage verification has passed. Also verify the actual page links resolve in the delivery surface: sibling relative links require a supported folder/bundle or valid Library references. Do not invent public URLs for local files. If rendering/link publication is unavailable, report that limitation and use the permitted visual fallback; a download-only ZIP does not replace the page protocol.
+Never deliver a page before that specific page has passed content and
+presentation verification. Full module completion requires every planned page. Also verify the actual page links resolve in the delivery surface: sibling relative links require a supported folder/bundle or valid Library references. Do not invent public URLs for local files. If rendering/link publication is unavailable, report that limitation and use the permitted visual fallback; a download-only ZIP does not replace the page protocol.
 
 ### 9.3 Host-limited continuation and recovery
 
@@ -291,7 +295,10 @@ If the host cannot autonomously create the next session, send only the current p
 
 On an explicit continuation within the branch, read the saved cursor, verify the next artifact's availability/revision, and deliver exactly that page. Advance `delivery_cursor`/`next_page` only after host-accepted delivery of the verified accessible page/reference; reconcile uncertain sends before retrying. If an artifact disappeared, restore/regenerate and QA the affected material before delivery, preserving provenance and the main return point. No navigation step marks LP understanding.
 
-The full module remains generated, coverage-checked and presentation-reviewed before this paced delivery begins. Declare any unexecuted presentation checks as specified in §7; do not mislabel them as passes. Host limits change delivery timing, not the original content-completeness requirement.
+When using incremental staging, full-source G2 coverage precedes writing;
+each delivered page has its own G3–G5 verification. The module-wide status
+remains partial until all pages have passed and been delivered. Declare
+unexecuted presentation checks as NOT_RUN rather than PASS. Host limits change delivery timing, not the original content-completeness requirement.
 
 If the host cannot create HTML files, preserve the same one-learning-step-per-session behavior using separate visual responses rather than collapsing the module into one long response.
 

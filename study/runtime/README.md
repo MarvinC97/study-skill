@@ -1,4 +1,4 @@
-# Study V6.2 · Host-Native Runtime
+# Study V6.3 · Host-Native Runtime
 
 **Codex / DSH supplies the model via its already connected session.**
 Study requires no separate model API, token, endpoint, provider environment
@@ -41,6 +41,24 @@ Open the Study directory as an Agent Skill in Codex/DSH. The host interprets
 `/study`, `/study-n`, `/study-e`, `/study-d`, `/study-q`, `/study-c` and
 `/study-m`. Python CLI commands are *internal deterministic tools*, rather
 than seven standalone model API entrypoints.
+
+## Two learning modes
+
+- `/study`: inventory all atomic LPs, then group normally **2–4 related LPs**
+  (range 1–6) into one coherent HTML Unit. Every grouped page needs a common
+  learning objective, grouping relation, shared worked case, grouping reason,
+  and independent reviewer acceptance of the shared example/cognitive load.
+  Preserve LP-specific facts, source anchors, answer evidence and Unit cursor.
+- `/study-d`: default to one independent mechanism or experiment per page.
+  A strongly connected 2–3 LP chain may share a page (maximum four) with
+  explicit G2 coherence review. Use richer explanations, diagrams,
+  progressive microquestions, detailed experiment setup/results and boundaries.
+  Obtain the learner's approval for the full reviewed outline before drafting.
+
+Authoritative detailed grouping contract: [`../references/study-modes.md`](../references/study-modes.md).
+The strict [G2–G6 quality contract](../references/quality-gates-v6.2.md)
+remains in force for deep modules. The two modes share the same learner profile,
+course `study-state.json` and host-native model.
 
 ## First course: host tools + local verifier
 

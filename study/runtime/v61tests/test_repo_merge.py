@@ -24,7 +24,7 @@ class RepoOverlayTest(unittest.TestCase):
             for rel,h in before.items():self.assertEqual(m.sha(repo/rel),h,rel)
             self.assertTrue((repo/'study/runtime/v6_agent.py').is_file())
             self.assertTrue((repo/'study/runtime/v61_learner.py').is_file())
-            self.assertIn('V6.2', (repo/'study/SKILL.md').read_text())
-            self.assertIn('V6.2', (repo/'README.md').read_text())
+            self.assertIn('V6.3', (repo/'study/SKILL.md').read_text())
+            self.assertIn('V6.3', (repo/'README.md').read_text())
 
 if __name__=='__main__':unittest.main()

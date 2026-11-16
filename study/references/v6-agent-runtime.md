@@ -1,4 +1,4 @@
-# Study V6.2 · Host-Native Runtime Contract
+# Study V6.3 · Host-Native Runtime Contract
 
 This is the execution playbook for a Study Skill installed in Codex, DSH,
 or another agent host. The host's **already connected session model** performs
@@ -26,6 +26,24 @@ part of the Study architecture.
 
 A generated file, a passed structural validator, an approved independent
 review and a confirmed user-visible delivery are different states.
+
+## Two-mode G2/G3 contracts
+
+Read `study-modes.md` before planning. Standard `/study` groups typically
+2–4 related LPs (range 1–6) into a complete Unit. Grouped Unit plan pages
+declare `learning_objective`, `grouping_relation`, `shared_case`,
+`grouping_rationale`; the independent plan reviewer supplies
+`unit_group_audits` with real LP IDs, `coherent`, `shared_case_ok`,
+`cognitive_load_ok` and a specific reason. `/study-n` uses a single
+`shared_teaching` explanation, individual LP connections/fact explanations,
+and a `unit_coherence` reviewer record before one HTML Unit is presented.
+Normal Study's G2/G3 burden is proportionate to an integrated Unit.
+
+`/study-d` keeps the detailed source inventory, high-risk G2 audits,
+reviewed owner-approved outline, detailed experiment/causal explanations,
+LP-level hidden microquestions, independent G4 review and staged delivery.
+A deep page normally covers one independent objective; closely related
+LPs can share a page under the existing four-LP ceiling.
 
 ## G1 — source ingestion and learner location
 

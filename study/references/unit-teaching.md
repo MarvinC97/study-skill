@@ -10,6 +10,17 @@ Use the Unit's stable learning-point (LP) IDs, source-supported objectives and c
 
 Choose one main teaching form per coherent cluster using `visual-semantics.md`. Use `interaction-design.md` when an adjustable condition or step sequence reveals the mechanism, not merely to decorate a page.
 
+## Standard Unit grouping and LP identity
+
+Load `study-modes.md`. A standard Unit normally combines 2–4 LPs
+(range 1–6) linked by one causal chain, shared mechanism, prerequisite
+bridge, comparison or task workflow. Use one goal, a shared example and
+one teaching spine, followed by each LP's source-supported contribution
+and independent fact explanations. A heavy algorithm, experiment or
+failure case usually needs its own Unit or only short context.
+One page-level Checkpoint plus useful microquestions tests the connected
+mental model; every LP retains its own mastery evidence.
+
 ## Standard Unit sequence
 
 1. **WHY**: the problem this concept solves, in one concrete situation.

@@ -1,6 +1,6 @@
 ---
 name: study
-version: "6.2"
+version: "6.3"
 description: >
   Host-native, source-grounded adaptive tutoring for Codex, DSH, and other
   agents. Activate on /study, /study-n, /study-e, /study-d, /study-q, /study-c,
@@ -8,7 +8,7 @@ description: >
   coverage, quality checks, user-approved deep outlines and persistent progress.
 ---
 
-# Study V6.2 — Host-Native Agent Skill
+# Study V6.3 — Host-Native Agent Skill
 
 ## Execution architecture — authoritative
 
@@ -39,6 +39,14 @@ tools and report unverifiable gates accurately; do not fake a successful check.
 The commands are host-interpreted actions, not a direct Python model interface.
 Load `references/v6-agent-runtime.md` for exact host-native file contracts,
 reviewer receipts, Windows examples and continuation behavior.
+
+## Mode boundaries
+
+Load `references/study-modes.md`. Standard `/study` groups related LPs
+(typically 2–4; allowed 1–6) into one complete Unit/page with one objective,
+shared case and mental model. `/study-d` focuses on one independent mechanism
+or experiment per page (linked 2–3, maximum 4 only when coherent).
+Every LP retains separate source anchors and understanding evidence.
 
 ## First use, profiles and cross-session continuity
 

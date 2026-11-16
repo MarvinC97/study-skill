@@ -10,13 +10,23 @@ Read this only after the current source has been loaded/normalized, or when star
 
 For /study-d, use `quality-gates-v6.2.md`: enumerate `source_inventory`
 items before counting Units or writing pages; record exact source quotes per
-inventory item and required fact. One independent mechanism/decision/experiment
-objective belongs to one deep LP and its own page. The host checker enforces
-one inventory item per LP; an isolated reviewer must inspect the source for
-hidden merges even when the mapped text is under 1,800 characters.
+inventory item and required fact. Each independent mechanism/decision/experiment keeps a distinct atomic
+LP ID. Study-D normally teaches one core LP per page; 2–3 related LPs (up to
+four) may share a page when their relationship is the page objective, as
+confirmed by the reviewer. The Host enforces one inventory item per LP.
 Map all numbered experiments with their design/results/limits and every thought
 question with an assessment target. If the original source omits a facet, mark
 `not_in_source` and explain the gap. Scope and source gaps stay explicit.
+
+## Standard Study LP grouping
+
+Read `study-modes.md`. After inventorying all source-grounded LPs, group
+normally 2–4 related LPs into one teachable Unit page (range 1–6).
+A grouped Unit must share one observable objective, a supported
+`grouping_relation`, a concrete `shared_case`, and an explanatory
+`grouping_rationale`. Avoid combining independent heavy algorithms,
+experiments or failure cases. Preserve every LP ID and assessment evidence
+even if the Unit grouping changes.
 
 ## Goal
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Study V6 user command operations. Live generation requires configured model API.
-A verified source/plan plus per-artifact reviews and file records are mandatory.
+"""Study host-native command operations. Codex/DSH authors content with its connected model.
+Python only validates source, persisted course, reviewed artifacts, and delivery.
 """
 from __future__ import annotations
 import argparse,html,json,hashlib,re,sys,shutil,os
@@ -92,12 +92,20 @@ def next_unit(ws):
   dpath=w/'drafts'/f'{pg["page_id"]}.json'
   if dpath.exists():draft=v5.read_json(dpath)
   else:raise v5.GateError('host-authored Unit draft missing: '+str(dpath))
-  issues=v5.validate_content_data(points,draft)
+  issues=v5.validate_content_data(points,draft,mode='study')
   if issues:raise v5.GateError('content contract failure: '+str(issues))
   sm={x['id']:x for x in source['segments']}
   ev=[sm[x] for pt in points for x in pt['source_span_ids']]
   required=[f['id'] for pt in points for f in pt['required_facts']]
   rev=independent_review(w,pg['page_id']+'-unit',ev,{'points':points,'draft':draft},required)
+  if len(points)>1:
+    coherence=rev.get("unit_coherence",{})
+    if (coherence.get("coherent") is not True or
+        coherence.get("shared_case_ok") is not True or
+        coherence.get("cognitive_load_ok") is not True or
+        set(coherence.get("checked_lp_ids",[]))!=set(ids) or
+        not isinstance(coherence.get("reason"),str) or len(coherence["reason"].strip())<45):
+      raise v5.GateError('G4 Study Unit needs reviewer-confirmed shared example, cognitive load and LP coverage')
   # The existing host-agent review receipt was verified against this exact draft.
   prev='overview.html' if index==0 else plan['pages'][index-1]['page_id']+'.html'
   nxt='overview.html'
@@ -310,7 +318,7 @@ def consolidate_existing(ws,topic):
     draft=obj(w/'drafts'/f'{pg["page_id"]}.json')
     if draft is None:
       absent.append(pg['page_id']);continue
-    issues=v5.validate_content_data(pts,draft)
+    issues=v5.validate_content_data(pts,draft,mode=plan.get('mode','study-d'))
     if issues:raise v5.GateError('incomplete generated draft '+pg['page_id']+': '+str(issues))
     covered.append(pg['page_id'])
     parts.append('<section class="card"><h2>'+h(pg['page_id']+' · '+draft['title'])+'</h2><p>'+h(draft['intro'])+'</p>')
@@ -374,7 +382,7 @@ def consolidate_existing(ws,topic):
       d=obj(dw/'drafts'/f'{deep_page["page_id"]}.json')
       if d is None:raise v5.GateError('deep module declared published but draft missing: '+deep_page['page_id'])
       pp=[deep_pm[x] for x in deep_page['lp_ids']]
-      if v5.validate_content_data(pp,d):raise v5.GateError('deep module has incomplete content contract')
+      if v5.validate_content_data(pp,d,mode='study-d'):raise v5.GateError('deep module has incomplete content contract')
       deep_count+=1;parts.append('<section class="card"><h2>深度模块：'+h(meta.get('topic',''))+' · '+h(d['title'])+'</h2>')
       for block in d['sections']:
         key=(block['heading'],block['text'])
