@@ -81,7 +81,7 @@ class StandardAndDeepContracts(unittest.TestCase):
             "coherent":True,"shared_case_ok":False,
             "cognitive_load_ok":True,"reason":AUDIT_REASON}]}
   errors=__import__("quality_contract").validate_study_group_review(review,self.plan)
-  self.assertTrue(any("coherence" in e for e in errors),errors)
+  self.assertTrue(any("cognitive-load review" in e for e in errors),errors)
 
  def test_deep_keeps_existing_one_focused_LP_default(self):
   self.plan["mode"]="study-d"
