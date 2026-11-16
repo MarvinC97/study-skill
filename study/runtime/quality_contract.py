@@ -6,6 +6,8 @@ host reviewer; a JSON receipt alone cannot prove a reviewer actually read it.
 """
 from __future__ import annotations
 import re
+import hashlib
+import json
 
 ATOMIC_KINDS={"concept","mechanism","decision","algorithm","comparison",
               "experiment","failure_case","boundary","reflection"}
@@ -248,8 +250,119 @@ def dimension_text(draft,dimension):
     return texts
 
 
-def validate_plan_review_audits(review,source,plan):
+def scoped_digest(value):
+    return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def review_batch_scope(source,plan,lp_ids):
+    """Stable across unrelated page edits; source and LP content changes invalidate."""
+    by_lp={p["lp_id"]:p for p in plan["points"]}
+    inventory={x["id"]:x for x in plan.get("source_inventory",[])}
+    spans={x["id"]:x for x in source["segments"]}
+    return scoped_digest({
+        "source_sha256":source["source_sha256"],
+        "learning_points":[by_lp[x] for x in sorted(lp_ids)],
+        "inventory":[inventory[i] for x in sorted(lp_ids)
+                     for i in by_lp[x].get("inventory_ids",[])],
+        "source_spans":[spans[i] for i in sorted({
+            sid for x in lp_ids for sid in by_lp[x].get("source_span_ids",[])})]
+    })
+
+
+def review_page_scope(source,plan,page):
+    by_lp={p["lp_id"]:p for p in plan["points"]}
+    return scoped_digest({"source_sha256":source["source_sha256"],
+        "page":page,"points":[by_lp[x] for x in page.get("lp_ids",[])]})
+
+
+def validate_batch_plan_review(review,source,plan,cache=None):
+    """Efficient G2: full deterministic coverage, bounded review batches and
+    focused scrutiny only for risky LPs/combined pages.
+    Verified hashes enable safe reuse of unchanged reviewer work.
+    """
+    issues=[];cache=cache or {"batches":{},"pages":{}}
+    by_lp={p["lp_id"]:p for p in plan["points"]}
+    pages={p["page_id"]:p for p in plan["pages"]}
+    included=[];seen_scopes=[]
+    supplied=review.get("batch_audits",[])
+    if not isinstance(supplied,list):supplied=[]
+    for audit in supplied:
+        if not isinstance(audit,dict):issues.append("G2 malformed review batch");continue
+        ids=audit.get("lp_ids",[])
+        if not isinstance(ids,list) or not ids or len(ids)>12 or len(set(ids))!=len(ids) or set(ids)-set(by_lp):
+            issues.append("G2 invalid or oversized review batch");continue
+        digest=review_batch_scope(source,plan,ids)
+        if audit.get("scope_sha256")!=digest or audit.get("approved") is not True or audit.get("issues"):
+            issues.append("G2 failed/stale batch review "+str(audit.get("batch_id")));continue
+        if not substantial(audit.get("reason"),45):
+            issues.append("G2 review batch needs a substantive explanation")
+        included.extend(ids);seen_scopes.append(digest)
+    reusable=review.get("reuse_batch_sha256",[])
+    if not isinstance(reusable,list):reusable=[]
+    for d in reusable:
+        item=cache.get("batches",{}).get(d)
+        if not isinstance(item,dict) or item.get("scope_sha256")!=d or not item.get("lp_ids"):
+            issues.append("G2 batch reuse has no previously accepted matching receipt");continue
+        ids=item["lp_ids"]
+        if not set(ids).issubset(by_lp) or review_batch_scope(source,plan,ids)!=d:
+            issues.append("G2 cached batch is stale");continue
+        included.extend(ids);seen_scopes.append(d)
+    if len(included)!=len(set(included)) or set(included)!=set(by_lp):
+        issues.append("G2 review batches must cover each LP exactly once")
+    if len(seen_scopes)!=len(set(seen_scopes)):
+        issues.append("G2 review batch receipt duplicated")
+    risk={p["lp_id"] for p in plan["points"] if p.get("kind") in
+          ("algorithm","experiment","failure_case","boundary")}
+    audits=review.get("risk_audits",[])
+    if not isinstance(audits,list):audits=[]
+    if {a.get("lp_id") for a in audits if isinstance(a,dict)}!=risk or len(audits)!=len(risk):
+        issues.append("G2 risk LP audits incomplete: "+str(sorted(risk)))
+    for a in audits:
+        if not isinstance(a,dict):continue
+        if a.get("needs_split") is True or a.get("atomic") is not True or not substantial(a.get("reason"),45):
+            issues.append("G2 unresolved risky LP atomicity "+str(a.get("lp_id")))
+    grouped={p["page_id"]:p for p in plan["pages"] if len(p["lp_ids"])>1}
+    audit_pages=review.get("page_audits",[])
+    if not isinstance(audit_pages,list):audit_pages=[]
+    reviewed_pages={}
+    for a in audit_pages:
+        if not isinstance(a,dict):issues.append("G2 malformed grouped-page audit");continue
+        pid=a.get("page_id")
+        if pid not in grouped or pid in reviewed_pages:
+            issues.append("G2 invalid/duplicate grouped page "+str(pid));continue
+        page=grouped[pid];d=review_page_scope(source,plan,page)
+        if a.get("scope_sha256")!=d or a.get("coherent") is not True or a.get("needs_split") is not False or not substantial(a.get("reason"),45):
+            issues.append("G2 grouped-page coherence audit failed "+str(pid))
+        reviewed_pages[pid]=d
+    reuse_pages=review.get("reuse_page_sha256",[])
+    if not isinstance(reuse_pages,list):reuse_pages=[]
+    for d in reuse_pages:
+        a=cache.get("pages",{}).get(d)
+        if not isinstance(a,dict):issues.append("G2 grouped page reuse missing");continue
+        pid=a.get("page_id")
+        if pid not in grouped or review_page_scope(source,plan,grouped[pid])!=d or pid in reviewed_pages:
+            issues.append("G2 grouped page reuse stale/duplicate "+str(pid));continue
+        reviewed_pages[pid]=d
+    if set(reviewed_pages)!=set(grouped):
+        issues.append("G2 all grouped pages need independent coherence checks")
+    markers={m.replace("–","-").replace(" ","") for m in experiment_markers(source.get("text",""))}
+    if set(review.get("experiment_ids_checked",[]))!=markers:
+        issues.append("G2 experiment register review incomplete")
+    reflections=reflection_numbers(source.get("text",""))
+    if set(review.get("reflection_numbers_checked",[]))!=reflections:
+        issues.append("G2 reflection register review incomplete")
+    inventory={x["id"] for x in plan.get("source_inventory",[])}
+    if set(review.get("checked_inventory_ids",[]))!=inventory:
+        issues.append("G2 inventory ID review incomplete")
+    return issues
+
+
+def validate_plan_review_audits(review,source,plan,cache=None):
     if plan.get("mode")!="study-d":return []
+    if review.get("review_contract")=="g2-batched-v3":
+        return validate_batch_plan_review(review,source,plan,cache)
+    if any(len(page.get("lp_ids",[]))>1 for page in plan.get("pages",[])):
+        return ["G2 grouped Study-D pages require batched-v3 page coherence review"]
     issues=[];inventory=plan.get("source_inventory",[]);points=plan.get("points",[])
     inv={x["id"] for x in inventory if isinstance(x,dict) and x.get("id")}
     pointids={p["lp_id"] for p in points}
