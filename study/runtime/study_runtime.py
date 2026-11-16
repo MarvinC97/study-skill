@@ -283,10 +283,9 @@ def html_page(page,points,draft,source,prev_href,next_href):
     rows.append(f'<h1>{esc(draft["title"])}</h1><p class="lede" data-core="intro">{esc(draft["intro"])}</p>')
     for i,x in enumerate(draft["sections"],1):
         rows.append(f'<section class="card" data-core="section-{i}"><h2>{esc(x["heading"])}</h2><p>{esc(x["text"])}</p></section>')
-    # Tutor-authored reasoning is separately rendered from verbatim source callouts.
-    # The source callout below can never satisfy the authored explanation contract.
-    for item in draft.get("teaching_evidence",[]):
-        rows.append(f'<section class="card" data-teaching-lp="{esc(item["lp_id"])}"><h2>机制与推导</h2>')
+    # Source quotes remain visually separate from the actual tutorial explanation.
+    shared=draft.get("shared_teaching")
+    def render_spine(item):
         rows.append(f'<p data-core="mechanism">{esc(item["core_explanation"])}</p>')
         rows.append('<h3>因果步骤</h3><ol>')
         for step in item["causal_steps"]:rows.append(f'<li>{esc(step)}</li>')
@@ -300,6 +299,16 @@ def html_page(page,points,draft,source,prev_href,next_href):
         for v in item["conditions"]:rows.append(f'<p>{esc(v)}</p>')
         rows.append('<h3>限制与反例</h3>')
         for v in item["limitations"]:rows.append(f'<p>{esc(v)}</p>')
+    if shared:
+        rows.append('<section class="card" data-shared-teaching="true"><h2>共同机制与推导</h2>')
+        render_spine(shared)
+        rows.append('</section>')
+    for item in draft.get("teaching_evidence",[]):
+        rows.append(f'<section class="card" data-teaching-lp="{esc(item["lp_id"])}"><h2>学习点的具体解释</h2>')
+        if shared:
+            rows.append(f'<p data-lp-connection="{esc(item["lp_id"])}">{esc(item["lp_connection"])}</p>')
+        else:
+            render_spine(item)
         for value in item.get("fact_explanations",[]):
             rows.append(f'<p data-authored-fact-id="{esc(value["fact_id"])}">{esc(value["explanation"])}</p>')
         if item.get("experiment"):
