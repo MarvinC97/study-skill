@@ -76,6 +76,10 @@ def validate_deep_inventory(source,plan):
         if iid not in mapping:issues.append(str(pid)+" references unknown atomic inventory item "+str(iid))
         elif mapping[iid].get("span_id") not in point.get("source_span_ids",[]):
             issues.append(str(pid)+" inventory item is disconnected from LP source span")
+        for fact in point.get("required_facts",[]):
+            sid=fact.get("span_id")
+            if sid not in spans or not source_contains(spans[sid]["text"],fact.get("source_quote")):
+                issues.append(str(pid)+" fact "+str(fact.get("id"))+" lacks an exact source evidence quote")
     if ids!=set(used):
         issues.append("G2 inventory-to-LP coverage mismatch; missing="+str(sorted(ids-set(used)))+
                       " repeated="+str(sorted({x for x in used if used.count(x)>1})))
@@ -259,6 +263,7 @@ def validate_content_review_audits(entry,points,draft,source):
             issues.append("G4 fact not grounded and explained "+a["fact_id"])
         sid=f.get("span_id")
         if (a.get("source_span_id")!=sid or sid not in source_spans or
+            clean(a.get("source_quote"))!=clean(f.get("source_quote")) or
             not source_contains(source_spans[sid]["text"],a.get("source_quote"))):
             issues.append("G4 fact source quotation invalid "+a["fact_id"])
         quote=clean(a.get("draft_quote"))
