@@ -272,9 +272,10 @@ class Manager:
 
 def main():
   p=argparse.ArgumentParser(description='Study V6 manager agent / deterministic host')
-  p.add_argument('command',choices=['run','status','approve-outline','deliver-next','consolidate'])
+  p.add_argument('command',choices=['run','status','approve-outline','deliver-next','confirm-delivery','consolidate'])
   p.add_argument('--workspace',default='work/study-v6');p.add_argument('--source');p.add_argument('--mode',choices=['study','study-d'],default='study-d')
   p.add_argument('--learner-name',default='',help='Explicit English name for V3.5 compatible persisted learner profile')
+  p.add_argument('--file',help='Exact HTML artifact already shown to the learner; required for confirm-delivery')
   p.add_argument('--study-root',default=None,help='Existing Study root; defaults to ~/Study')
   p.add_argument('--temporary',action='store_true',help='Explicitly bypass named durable profile')
   p.add_argument('--max-steps',type=int,default=70);p.add_argument('--topic',default='');p.add_argument('--parent-workspace');p.add_argument('--policy',choices=['live','fixture'],default='live')
@@ -304,14 +305,22 @@ def main():
     elif a.command=='approve-outline':result=v5.approve_outline(w)
     elif a.command=='deliver-next':
       result=v5.next_delivery(w)
+    elif a.command=='confirm-delivery':
+      if not a.file:raise v5.GateError('confirm-delivery requires --file')
+      # A successful host presentation of the exact prepared artifact is required.
+      result=v5.confirm_delivery(w,a.file)
       b=learners.binding(w)
       parent=b.get('parent_workspace')
       if parent:
         d=learners.course(parent);branch=d.setdefault('navigation',{}).get('deep_branch')
-        if branch and branch.get('workspace')==str(w):
-          branch['next_page']=result.get('index',branch.get('next_page',0))
-          branch['status']='completed' if result.get('finished') else 'delivering'
-          learners.save_course(parent,d)
+        if not branch or branch.get('workspace')!=str(w):
+          raise learners.LearnerError('deep branch no longer matches the current workspace')
+        if branch.get('next_page',0)>result['index']:
+          raise learners.LearnerError('parent branch cursor exceeds confirmed page')
+        branch['next_page']=result['index']
+        queue=v5.read_json(w/'delivery-queue.json')
+        branch['status']='completed' if result['index']>=len(queue['files']) else 'delivering'
+        learners.save_course(parent,d)
     else:result=v5.consolidate(w,a.topic)
     print(json.dumps({'ok':True,'result':result},ensure_ascii=False,indent=2))
   except Exception as e:
