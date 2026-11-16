@@ -7,6 +7,7 @@ import study_runtime as host
 import v6_agent as agent
 import v6_ops
 import v61_learner as learners
+import quality_fixture as qf
 
 class HostOpsIntegration(unittest.TestCase):
  def test_standard_unit_and_profile_use_host_artifacts(self):
@@ -36,13 +37,7 @@ class HostOpsIntegration(unittest.TestCase):
    learners.update_intake(w,goal='Learn training')
    learners.update_intake(w,map_reviewed=True)
    learners.update_intake(w,familiarity='Beginner')
-   draft={'title':'Training Unit','intro':'A structured training lesson grounded in source.',
-    'sections':[{'heading':'Motivation','text':'Explain why this source concept matters for practical systems.'},
-      {'heading':'Mechanism','text':'Explain the input process and output with source conditions.'},
-      {'heading':'Example','text':'A concrete source-backed example illustrates expected behaviour.'}],
-    'mini_questions':[{'question':'Why?','answer':'The source gives the condition.'}]*len(points),
-    'checkpoint':{'question':'Which evidence?','options':['A','B','C'],'correct_index':1,'feedback':'Read source.'},
-    'represented_fact_ids':[f['id'] for p in points for f in p['required_facts']]}
+   draft=qf.draft(points[0],"Training Unit")
    host.atomic_json(w/'drafts'/'U001.json',draft)
    artifact={'points':points,'draft':draft}
    receipt={'review_mode':'isolated_host_agent','reviewer_context_id':'R2','writer_context_id':'W2',
