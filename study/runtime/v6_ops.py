@@ -131,10 +131,23 @@ def confirm_unit_delivery(ws,file):
   if not candidate.is_file() or v5.sha(candidate.read_bytes())!=pending['sha256']:
     raise v5.GateError('pending Unit artifact missing or changed')
   index=int(v5.state(w).get('current_unit',0))
-  if pending['unit']!=index+1:raise v5.GateError('pending Unit cursor drift')
-  # First update canonical learner course; recovery can restore Host cursor after a crash.
-  result=learners.mark_unit_delivered(w,pending['unit'],candidate)
-  state=v5.state(w);state['current_unit']=pending['unit'];v5.save(w,state)
+  if pending['unit']==index:
+    # Recovery after a crash between the canonical learner-state write and the
+    # final delivery receipt. Require proof in BOTH course state and artifact hash.
+    learner=learners.course(w)
+    matched=any(a.get('reference')==str(candidate)
+                and a.get('sha256')==pending['sha256']
+                and a.get('delivery_status')=='delivered'
+                for a in learner.get('artifacts',[]))
+    if not matched or learner.get('navigation',{}).get('current_unit_index',0)<index:
+      raise v5.GateError('Host cursor advanced without matching learner evidence')
+    result={'recovered':True,'cursor':index}
+  elif pending['unit']==index+1:
+    # First update canonical learner course; recovery restores Host cursor after a crash.
+    result=learners.mark_unit_delivered(w,pending['unit'],candidate)
+    state=v5.state(w);state['current_unit']=pending['unit'];v5.save(w,state)
+  else:
+    raise v5.GateError('pending Unit cursor drift')
   v5.atomic_json(w/'unit-delivery-confirmed.json',pending)
   (w/'unit-delivery-pending.json').unlink()
   return {'confirmed':True,'duplicate':False,'unit':pending['unit'],
