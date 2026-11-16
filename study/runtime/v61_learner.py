@@ -328,12 +328,30 @@ def recover(workspace):
       'evidence':len(d.get('evidence',[]))}
 
 def deep_branch(workspace,module_workspace,topic,return_unit=None,next_page=0):
-    w=Path(workspace);d=course(w)
-    if not Path(module_workspace).resolve().is_relative_to(w.resolve()):
-        raise LearnerError('deep branch must be inside same course workspace')
-    nav=d.setdefault('navigation',{});nav['deep_branch']={'topic':topic,'workspace':str(Path(module_workspace).resolve()),
-      'next_page':next_page,'main_return':return_unit if return_unit is not None else nav.get('current_unit_index',0),'status':'pending'}
-    save_course(w,d);return nav['deep_branch']
+    """Resume a matching Study-D branch without resetting its delivery cursor."""
+    w=Path(workspace).resolve();module=Path(module_workspace).resolve()
+    if module == w or not module.is_relative_to(w):
+        raise LearnerError('deep branch must be strictly inside the same course workspace')
+    if not isinstance(next_page,int) or next_page<0:
+        raise LearnerError('invalid deep page cursor')
+    d=course(w);nav=d.setdefault('navigation',{})
+    existing=nav.get('deep_branch')
+    if existing:
+        prior=Path(existing.get('workspace','')).resolve()
+        if prior == module:
+            if existing.get('topic')!=topic:
+                raise LearnerError('deep workspace is already associated with another topic')
+            # Preserve pending/delivering/paused/completed and the original return point.
+            # Only explicit delivery confirmation may advance next_page.
+            return existing
+        if existing.get('status') in ('pending','delivering'):
+            raise LearnerError('another deep branch is active; pause or finish it first')
+    item={'topic':topic,'workspace':str(module),'next_page':next_page,
+          'main_return':return_unit if return_unit is not None else nav.get('current_unit_index',0),
+          'status':'pending'}
+    nav['deep_branch']=item
+    save_course(w,d)
+    return item
 
 def main(argv=None):
     p=argparse.ArgumentParser(description='Study V6.1 learner profile and course evidence commands')
