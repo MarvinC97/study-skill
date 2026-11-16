@@ -71,6 +71,17 @@ class DeepGateRegression(unittest.TestCase):
   self.assertTrue(any("teaching_evidence" in x for x in issues),issues)
   self.assertTrue(any("rubric" in x for x in issues),issues)
 
+ def test_experiment_kind_and_missing_methods_cannot_bypass_review(self):
+  self.plan["source_inventory"][0]["kind"]="experiment"
+  self.plan["source_inventory"][0]["experiment_id"]="8-1"
+  host.atomic_json(self.w/"plan.json",self.plan)
+  issues=host.validate_plan(self.w)["issues"]
+  self.assertTrue(any("LP kind disagrees" in x for x in issues),issues)
+  experimental=copy.deepcopy(self.points[0]);experimental["kind"]="experiment"
+  draft=qf.draft(experimental)
+  issues=host.validate_content_data([experimental],draft)
+  self.assertTrue(any("experimental method/result missing" in x for x in issues),issues)
+
  def test_good_structured_lesson_satisfies_static_g3(self):
   draft=qf.draft(self.points[0])
   self.assertEqual(host.validate_content_data([self.points[0]],draft),[])
