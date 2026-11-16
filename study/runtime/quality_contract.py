@@ -127,7 +127,9 @@ def validate_authored_teaching(points,draft):
     issues=[]
     if not isinstance(draft,dict):return ["G3 draft must be a JSON object"]
     records=draft.get("teaching_evidence")
-    if not isinstance(records,list):return ["G3 missing authored teaching_evidence; source callouts cannot substitute"]
+    if not isinstance(records,list):
+        issues.append("G3 missing authored teaching_evidence; source callouts cannot substitute")
+        records=[]
     byid={p["lp_id"]:p for p in points}
     seen=set()
     for record in records:
