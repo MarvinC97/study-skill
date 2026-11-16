@@ -137,7 +137,7 @@ def validate_deep_inventory(source,plan):
     return issues
 
 
-def validate_authored_teaching(points,draft):
+def validate_authored_teaching(points,draft,mode="study-d"):
     issues=[]
     if not isinstance(draft,dict):return ["G3 draft must be a JSON object"]
     records=draft.get("teaching_evidence")
@@ -146,6 +146,8 @@ def validate_authored_teaching(points,draft):
         records=[]
     byid={p["lp_id"]:p for p in points}
     shared=draft.get("shared_teaching") if len(points)>1 else None
+    if mode=="study" and len(points)>1 and shared is None:
+        issues.append("G3 standard Study grouped Unit requires one shared teaching spine")
     if shared is not None:
         if not isinstance(shared,dict) or set(shared.get("lp_ids",[]))!=set(byid):
             issues.append("G3 shared teaching must cover exactly the grouped LPs")
@@ -159,7 +161,7 @@ def validate_authored_teaching(points,draft):
             issues.append("G3 unknown/repeated teaching LP "+str(pid));continue
         seen.add(pid)
         base=shared or record
-        if shared and not substantial(record.get("lp_connection"),70):
+        if shared and not substantial(record.get("lp_connection"),50 if mode=="study" else 70):
             issues.append("G3 "+pid+" lacks an authored connection to the shared lesson")
         if not substantial(base.get("core_explanation"),120):
             issues.append("G3 "+pid+" core explanation too shallow")
@@ -193,7 +195,7 @@ def validate_authored_teaching(points,draft):
             f=next((f for f in facts if f["id"]==entry.get("fact_id")),None)
             if f is None:continue
             value=clean(entry.get("explanation"))
-            if not substantial(value,75):
+            if not substantial(value,50 if mode=="study" else 75):
                 issues.append("G3 "+pid+" fact "+f["id"]+" explanation too short")
             if value==clean(f.get("text")):
                 issues.append("G3 "+pid+" fact "+f["id"]+" merely repeats source")
@@ -271,6 +273,28 @@ def dimension_text(draft,dimension):
             if isinstance(ex,dict):
                 texts.extend(clean(ex.get(k)) for k in EXPERIMENT_FACETS)
     return texts
+
+
+def validate_study_group_review(review,plan):
+    """Lightweight independent Unit-coherence review for standard Study.
+    Deep-study atomicity audits are reserved for /study-d.
+    """
+    if plan.get("mode")!="study":return []
+    grouped={p["page_id"]:p for p in plan.get("pages",[]) if len(p.get("lp_ids",[]))>1}
+    audits=review.get("unit_group_audits",[])
+    if not isinstance(audits,list):return ["G2 Study unit_group_audits must be an array"]
+    if len(audits)!=len(grouped) or {a.get("page_id") for a in audits if isinstance(a,dict)}!=set(grouped):
+        return ["G2 standard Study grouped Unit coherence review incomplete"]
+    issues=[]
+    for audit in audits:
+        if not isinstance(audit,dict):issues.append("G2 malformed Unit coherence review");continue
+        pid=audit.get("page_id");page=grouped.get(pid)
+        if not page:issues.append("G2 unknown grouped Unit "+str(pid));continue
+        if (audit.get("coherent") is not True or
+            set(audit.get("checked_lp_ids",[]))!=set(page["lp_ids"]) or
+            not substantial(audit.get("reason"),45)):
+            issues.append("G2 grouped Unit needs source-grounded independent coherence review "+pid)
+    return issues
 
 
 def scoped_digest(value):
