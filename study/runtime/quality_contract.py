@@ -419,6 +419,13 @@ def validate_plan_review_audits(review,source,plan,cache=None):
     return issues
 
 
+def content_page_scope(source,plan,page,draft):
+    by_lp={p["lp_id"]:p for p in plan["points"]}
+    return scoped_digest({"source_sha256":source["source_sha256"],
+                          "page":page,"points":[by_lp[x] for x in page["lp_ids"]],
+                          "draft":draft})
+
+
 def validate_compact_content_review(entry,points,draft,source):
     """A short source/fact ledger plus one substantive review per dimension.
     Risky cases still require their own focused reviewer explanation.
