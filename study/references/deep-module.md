@@ -10,6 +10,18 @@ Its goal is **complete coverage without visual overload**.
 
 It must preserve the current Study source, source anchors, learner state, and return point. Use the one per-course `study-state.json` contract in `../schemas/learning-point.md`. Map the information-point checklist and pages to stable LP IDs, retaining English source terminology/code with Chinese explanation. Artifact generation, page delivery and learner understanding are independent.
 
+## V6.4 depth means causal understanding
+
+Read `lesson-design.md`. After G2's complete reviewed outline and explicit
+user approval, the Lesson Designer authors ONE spec per deep page and obtains
+an actual independent design review. Deep pages need meaningful mechanisms,
+experiment comparison tables with true provenance, math derivations or
+first-error failure timelines as appropriate. The approved spec's changed-
+condition Checkpoint anchors the subsequent lesson. The host's
+`design-check` blocks a full draft until its design is approved. G4 checks
+the real drafted explanation, and G5 verifies actual HTML behavior. Record
+partial page-level checks distinctly from complete-module delivery.
+
 ## V6.3 deep-study preflight (overrides earlier general guidance)
 
 Before selecting page count, read `study-modes.md`, then build the complete
