@@ -13,6 +13,8 @@ from pathlib import Path
 import study_runtime as host
 import v61_learner as learners
 import quality_contract as qc
+import lesson_contract as lessons
+import lesson_render as renderer
 
 def load(p):
     return host.read_json(p)
@@ -113,6 +115,17 @@ def accept_plan_review(ws,review_file):
             "reviewed_batches":stored["reviewed_batches"],
             "reviewed_grouped_pages":stored["reviewed_grouped_pages"]}
 
+def design_ready(ws,plan,page,src,related,draft):
+    """Hard gate: every NEW teaching page needs a real reviewed design."""
+    try:
+        spec,design_hash=lessons.verify_ready(ws,plan,page,src,related)
+        problems=lessons.validate_draft_alignment(spec,draft)
+        if problems:raise lessons.LessonContractError("; ".join(problems))
+        return spec,design_hash
+    except (lessons.LessonContractError,ValueError,KeyError,TypeError) as exc:
+        raise host.GateError("G3 lesson design is not accepted: "+str(exc))
+
+
 def accept_content_review(ws,review_file):
     plan=need(ws,"frozen-plan.json");src=need(ws,"source.json")
     rev=load(review_file)
@@ -147,6 +160,9 @@ def accept_content_review(ws,review_file):
         relevant=[points[x] for x in page["lp_ids"]]
         errors=host.validate_content_data(relevant,draft,mode=plan.get("mode","study-d"))
         if errors:raise host.GateError("invalid reviewed draft "+pid+": "+str(errors))
+        spec,design_hash=design_ready(ws,plan,page,src,relevant,draft)
+        if entry.get("lesson_spec_sha256")!=design_hash:
+            raise host.GateError("G4 content review is not bound to the approved lesson design "+pid)
         required={f["id"] for p in relevant for f in p["required_facts"]}
         if set(entry.get("checked_fact_ids",[]))!=required:
             raise host.GateError("reviewer did not check every required fact for "+pid)
@@ -163,6 +179,7 @@ def accept_content_review(ws,review_file):
         if quality:
             raise host.GateError("G4 shallow/ungrounded lesson rejected "+pid+": "+str(quality[:14]))
         receipt={"page_id":pid,"approved":True,"issues":[],
+          "lesson_spec_sha256":design_hash,
           "checked_fact_ids":sorted(required),"draft_sha256":dsha,
           "quality_dimensions":entry["quality_dimensions"],
           "quality_contract":"compact-semantic-v3" if compact else "deep-semantic-v2",
@@ -223,7 +240,8 @@ def stage_next_page(ws,review_file):
     draft=need(w,"drafts/"+pid+".json")
     lookup={p["lp_id"]:p for p in plan["points"]}
     related=[lookup[lp] for lp in next_page["lp_ids"]]
-    errors=host.validate_content_data(related,draft)
+    spec,design_hash=design_ready(w,plan,next_page,src,related,draft)
+    errors=host.validate_content_data(related,draft,mode="study-d")
     if errors:raise host.GateError("G3 draft rejected "+pid+": "+str(errors[:12]))
     rev=load(review_file)
     if rev.get("review_mode")!="isolated_host_agent" or not rev.get("reviewer_context_id"):
@@ -239,6 +257,7 @@ def stage_next_page(ws,review_file):
     required={f["id"] for p in related for f in p["required_facts"]}
     if (set(entry.get("checked_fact_ids",[]))!=required or
         entry.get("draft_sha256")!=digest(draft) or
+        entry.get("lesson_spec_sha256")!=design_hash or
         entry.get("approved") is not True or entry.get("issues")):
         raise host.GateError("G4 fact coverage, approval or draft hash mismatch")
     if entry.get("review_contract")=="g4-compact-v3" and (
@@ -248,11 +267,12 @@ def stage_next_page(ws,review_file):
     if issues:raise host.GateError("G4 semantic review failed: "+str(issues[:12]))
     # Generated navigation links only to the index until neighbors are ready.
     dest=w/"draft-pages"/(pid+".html")
-    html=host.html_page(next_page,related,draft,src,"index.html","index.html")
+    html=renderer.render(next_page,related,draft,src,spec,"index.html","index.html")
     host.write_text(dest,html)
     staged=ledger["pages"]+[{"page_id":pid,"file":pid+".html",
         "lp_ids":next_page["lp_ids"],"draft_sha256":digest(draft),
         "rendered_sha256":host.sha(html),
+        "lesson_spec_sha256":design_hash,
         "review_scope_sha256":qc.content_page_scope(src,plan,next_page,draft),
         "reviewer_context_id":rev["reviewer_context_id"],
         "review_contract":entry.get("review_contract","deep-semantic-v2")}]
@@ -308,23 +328,35 @@ def stage_next_page(ws,review_file):
 
 def check_review_integrity(ws):
     plan=need(ws,"frozen-plan.json");review=need(ws,"reviews/content-review.json")
+    src=need(ws,"source.json");lookup={p["lp_id"]:p for p in plan["points"]}
+    bypage={p["page_id"]:p for p in plan["pages"]}
     if review.get("plan_sha256")!=digest(plan):raise host.GateError("content review stale: plan changed")
     if review.get("quality_audits_validated") is not True:
         raise host.GateError("G4 semantic review receipt missing")
     for entry in review.get("pages",[]):
-        draft=need(ws,"drafts/"+entry["page_id"]+".json")
+        pid=entry["page_id"];page=bypage.get(pid)
+        if page is None:raise host.GateError("unknown reviewed page "+pid)
+        draft=need(ws,"drafts/"+pid+".json")
+        spec,design_hash=design_ready(ws,plan,page,src,
+            [lookup[i] for i in page["lp_ids"]],draft)
+        if entry.get("lesson_spec_sha256")!=design_hash:
+            raise host.GateError("G4 lesson design changed after review "+pid)
         if digest(draft)!=entry.get("draft_sha256"):
-            raise host.GateError("content review stale: draft changed "+entry["page_id"])
+            raise host.GateError("content review stale: draft changed "+pid)
         if entry.get("quality_audits_validated") is not True:
-            raise host.GateError("G4 per-page quality review missing for "+entry["page_id"])
+            raise host.GateError("G4 per-page quality review missing for "+pid)
 
 def render(ws):
-    plan=need(ws,"frozen-plan.json")
-    for page in plan["pages"]:need(ws,"drafts/"+page["page_id"]+".json")
+    plan=need(ws,"frozen-plan.json");src=need(ws,"source.json")
+    lookup={p["lp_id"]:p for p in plan["points"]}
+    for page in plan["pages"]:
+        draft=need(ws,"drafts/"+page["page_id"]+".json")
+        design_ready(ws,plan,page,src,[lookup[i] for i in page["lp_ids"]],draft)
     return host.build_pages(ws)
 
 def verify(ws):
     plan=need(ws,"frozen-plan.json")
+    check_review_integrity(ws)
     if digest(plan)!=need(ws,"reviews/plan-review.json").get("plan_sha256"):
         raise host.GateError("approved plan changed before verification")
     check_review_integrity(ws)
