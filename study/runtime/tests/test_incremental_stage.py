@@ -70,8 +70,10 @@ class IncrementalBrowserAndDelivery(unittest.TestCase):
    item=host.next_delivery(self.w);host.confirm_delivery(self.w,item["file"])
   self.prepare(1)
   rendered=self.w/"draft-pages"/"P001.html"
-  rendered.write_text(rendered.read_text(encoding="utf-8").replace(
-      "Study V5","Study V6.2"),encoding="utf-8")
+  original=rendered.read_text(encoding="utf-8")
+  self.assertIn("SEE THE RELATIONSHIP",original)
+  rendered.write_text(original.replace(
+      "SEE THE RELATIONSHIP","EXAMINE THE RELATIONSHIP"),encoding="utf-8")
   result=host.browser_qa(self.w)
   self.assertTrue(result["passed"],result)
   self.assertEqual(result["pages_executed_now"],1)
