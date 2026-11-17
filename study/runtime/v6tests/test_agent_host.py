@@ -38,7 +38,8 @@ class HostNativeTests(unittest.TestCase):
  def write_drafts(self):
   for page in self.plan['pages']:
    point=next(p for p in self.points if p['lp_id']==page['lp_ids'][0])
-   v5.atomic_json(self.w/'drafts'/(page['page_id']+'.json'),qf.draft(point,page['title']))
+   d=qf.draft(point,page['title'])
+   qf.prepare_design(self.w,self.plan,self.reader,page,d)
 
  def content_review(self):
   return qf.content_review(self.plan,self.reader,{
