@@ -2,6 +2,19 @@
 
 Read this for Study overview pages, every standard learning Unit, and Study-E pages. The default experience should resemble a visual explainer, not an essay.
 
+## V6.4 meaningful visual decision
+
+Read `lesson-design.md` before creating a new page. Select the representation
+that exposes the concept's causal or quantitative relationship: process,
+decision, experiment table, formula, timeline, comparison or a focused
+concept map. A source-grounded diagram must label transitions and their
+meaning. Simple concepts may use text when clearer. The current
+`lesson_render.py` renders the reviewed specification; full source
+citations are in a separate expandable audit layer. Verify mobile/desktop,
+keyboard native disclosure, Checkpoint feedback and JS-disabled core in
+actual Chromium. A diagram that merely repeats a list of terms fails the
+teaching design review.
+
 ## Preferred format
 
 When the host can create or display HTML, ALWAYS create a self-contained HTML learning page. Use `../assets/overview-template.html` for the initial Study overview and `../assets/unit-template.html` for Units.

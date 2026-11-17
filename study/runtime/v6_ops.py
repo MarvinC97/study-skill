@@ -8,6 +8,8 @@ from pathlib import Path
 import study_runtime as v5
 import v61_learner as learners
 from v6_agent import obj,digest,stamp
+import lesson_contract as lessons
+import lesson_render as renderer
 
 def h(s):return html.escape(str(s),quote=True)
 def slug(s):return re.sub(r'[^a-zA-Z0-9_-]','-',s.lower()).strip('-')[:48] or 'topic'
@@ -59,21 +61,45 @@ def independent_review(ws,role,source,artifact,required_ids):
   return result
 
 def browser_check(html_file,selectors=()):
+  """Validate the actual Unit HTML; checks more than mobile overflow."""
   try:from playwright.sync_api import sync_playwright
-  except ImportError:raise v5.GateError('Playwright missing; page is unverified')
-  issues=[]
+  except ImportError:raise v5.GateError('Playwright missing; Unit is unverified')
+  issues=[];html_text=Path(html_file).read_text(encoding='utf-8')
   with sync_playwright() as p:
-    b=p.chromium.launch(headless=True,executable_path=os.environ.get('STUDY_CHROMIUM') or shutil.which('chromium') or shutil.which('google-chrome') or None)
+    b=p.chromium.launch(headless=True,
+      executable_path=os.environ.get('STUDY_CHROMIUM') or shutil.which('chromium')
+      or shutil.which('google-chrome') or None)
     for width in (390,1280):
       page=b.new_page(viewport={'width':width,'height':820})
-      page.set_content(Path(html_file).read_text(encoding='utf-8'))
-      if page.evaluate('document.documentElement.scrollWidth > window.innerWidth+3'):issues.append('mobile overflow' if width==390 else 'desktop overflow')
+      page.set_content(html_text)
       for css in selectors:
         if page.locator(css).count()==0:issues.append('missing '+css)
+      if page.evaluate('document.documentElement.scrollWidth > innerWidth+3'):
+        issues.append(('mobile' if width==390 else 'desktop')+' overflow')
+      if page.locator('.check button[data-correct=true]').count():
+        page.locator('.check button[data-correct=true]').first.click()
+        if not page.locator('.feedback').inner_text().startswith('正确'):
+          issues.append('checkpoint feedback broken')
+      if page.locator('.question details.micro-details summary').count():
+        t=page.locator('.question details.micro-details').first
+        t.locator('summary').focus();page.keyboard.press('Enter')
+        if not t.locator('.answer').is_visible():issues.append('native reveal keyboard broken')
+        page.locator('button.reset').click()
+        if t.locator('.answer').is_visible():issues.append('native reveal reset broken')
+      elif page.locator('button.reveal').count():
+        page.locator('button.reveal').first.focus();page.keyboard.press('Enter')
+        if not page.locator('.question .answer').first.is_visible():
+          issues.append('reveal keyboard broken')
+      else:issues.append('Unit has no progressive question')
       page.close()
-    b.close()
+    static=b.new_page(java_script_enabled=False)
+    static.set_content(html_text)
+    if static.locator('[data-core]').count()<3 or static.locator('[data-fact-id]').count()==0:
+      issues.append('JS-disabled core lesson or source missing')
+    static.close();b.close()
   if issues:raise v5.GateError('browser QA failed: '+', '.join(issues))
-  return {'browser_executed':True,'viewports':[390,1280],'passed':True}
+  return {'browser_executed':True,'viewports':[390,1280],'passed':True,
+          'keyboard_tested':True,'js_disabled_tested':True,'interactive_tested':True}
 
 def next_unit(ws):
   w=Path(ws);plan,source=need_plan(w)
@@ -92,12 +118,20 @@ def next_unit(ws):
   dpath=w/'drafts'/f'{pg["page_id"]}.json'
   if dpath.exists():draft=v5.read_json(dpath)
   else:raise v5.GateError('host-authored Unit draft missing: '+str(dpath))
+  try:
+    spec,design_hash=lessons.verify_ready(w,plan,pg,source,points)
+  except (lessons.LessonContractError,KeyError,ValueError,TypeError) as exc:
+    raise v5.GateError('G3 Unit lesson design rejected: '+str(exc))
+  alignment=lessons.validate_draft_alignment(spec,draft)
+  if alignment:raise v5.GateError('Unit draft differs from reviewed design: '+str(alignment))
   issues=v5.validate_content_data(points,draft,mode='study')
   if issues:raise v5.GateError('content contract failure: '+str(issues))
   sm={x['id']:x for x in source['segments']}
   ev=[sm[x] for pt in points for x in pt['source_span_ids']]
   required=[f['id'] for pt in points for f in pt['required_facts']]
   rev=independent_review(w,pg['page_id']+'-unit',ev,{'points':points,'draft':draft},required)
+  if rev.get('lesson_spec_sha256')!=design_hash:
+    raise v5.GateError('G4 Unit content review is not bound to approved Lesson Specification')
   if len(points)>1:
     coherence=rev.get("unit_coherence",{})
     if (coherence.get("coherent") is not True or
@@ -109,14 +143,14 @@ def next_unit(ws):
   # The existing host-agent review receipt was verified against this exact draft.
   prev='overview.html' if index==0 else plan['pages'][index-1]['page_id']+'.html'
   nxt='overview.html'
-  pagehtml=v5.html_page(pg,points,draft,source,prev,nxt)
+  pagehtml=renderer.render(pg,points,draft,source,spec,prev,nxt)
   dest=w/'published'/f'{pg["page_id"]}.html';v5.write_text(dest,pagehtml.replace('Study V5','Study V6'))
   if (w/'overview.html').exists():shutil.copy2(w/'overview.html',w/'published'/'overview.html')
   for pt in points:
     for fact in pt['required_facts']:
       if h(fact['text']) not in pagehtml or f'data-fact-id="{h(fact["id"])}"' not in pagehtml:
         dest.unlink();raise v5.GateError('render lost required fact '+fact['id'])
-  try:qa=browser_check(dest,selectors=['[data-fact-id]','.card.check button','button.reveal'])
+  try:qa=browser_check(dest,selectors=['[data-fact-id]','.card.check button','details.micro-details summary'])
   except Exception:dest.unlink();raise
   receipt=record(w,'unit',dest,pg['title'],ids)
   fingerprint=v5.sha(dest.read_bytes())

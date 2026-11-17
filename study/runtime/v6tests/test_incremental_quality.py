@@ -92,6 +92,7 @@ def page_review(src,plan,page,draft):
       "draft_quote":next(x for x in qc.dimension_text(draft,kind) if qc.substantial(x,35))}
       for kind in qc.REVIEW_DIMENSIONS]
     return {"review_contract":"g4-compact-v3",
+      "lesson_spec_sha256":qf.lc.digest(qf.make_spec(page,[p for p in plan["points"] if p["lp_id"] in page["lp_ids"]],draft)),
       "review_scope_sha256":qc.content_page_scope(src,plan,page,draft),
       "page_id":page["page_id"],"approved":True,"issues":[],
       "checked_fact_ids":[f["id"] for p in plan["points"] if p["lp_id"] in page["lp_ids"]
@@ -160,7 +161,7 @@ class EfficientStudyTests(unittest.TestCase):
         for pg in self.plan["pages"]:
             points=[p for p in self.plan["points"] if p["lp_id"] in pg["lp_ids"]]
             drafts[pg["page_id"]]=shared_draft(points)
-            host.atomic_json(self.w/"drafts"/(pg["page_id"]+".json"),drafts[pg["page_id"]])
+            qf.prepare_design(self.w,self.plan,self.source,pg,drafts[pg["page_id"]])
         page_checks=[page_review(self.source,self.plan,pg,drafts[pg["page_id"]])
                      for pg in self.plan["pages"]]
         request={"review_contract":"g4-compact-v3","review_mode":"isolated_host_agent",

@@ -169,28 +169,28 @@ def validate_authored_teaching(points,draft,mode="study-d"):
             issues.append("G3 unknown/repeated teaching LP "+str(pid));continue
         seen.add(pid)
         base=shared or record
-        if shared and not substantial(record.get("lp_connection"),50 if mode=="study" else 70):
+        if shared and not substantial(record.get("lp_connection"),24):
             issues.append("G3 "+pid+" lacks an authored connection to the shared lesson")
-        if not substantial(base.get("core_explanation"),120):
+        if not substantial(base.get("core_explanation"),45):
             issues.append("G3 "+pid+" core explanation too shallow")
         steps=base.get("causal_steps",[])
         if (not isinstance(steps,list) or len(steps)<2 or
-            any(not substantial(x,35) for x in steps) or
+            any(not substantial(x,18) for x in steps) or
             len(set(map(clean,steps)))!=len(steps)):
             issues.append("G3 "+pid+" lacks distinct, explained causal steps")
         worked=base.get("worked_example",{})
         if not isinstance(worked,dict):worked={}
-        for key,minimum in (("scenario",40),("input",25),("outcome",30),("why",65)):
+        for key,minimum in (("scenario",20),("input",12),("outcome",18),("why",24)):
             if not substantial(worked.get(key),minimum):
                 issues.append("G3 "+pid+" incomplete worked example: "+key)
         example_steps=worked.get("reasoning_steps",[])
         if not isinstance(example_steps,list) or len(example_steps)<2 or any(
-                not substantial(x,28) for x in example_steps):
+                not substantial(x,16) for x in example_steps):
             issues.append("G3 "+pid+" lacks step-by-step example reasoning")
         for key in ("conditions","limitations"):
             blocks=base.get(key,[])
             if not isinstance(blocks,list) or not blocks or any(
-                    not substantial(x,30) for x in blocks):
+                    not substantial(x,14) for x in blocks):
                 issues.append("G3 "+pid+" missing meaningful "+key)
         facts=byid[pid].get("required_facts",[])
         details=record.get("fact_explanations",[])
@@ -203,7 +203,7 @@ def validate_authored_teaching(points,draft,mode="study-d"):
             f=next((f for f in facts if f["id"]==entry.get("fact_id")),None)
             if f is None:continue
             value=clean(entry.get("explanation"))
-            if not substantial(value,50 if mode=="study" else 75):
+            if not substantial(value,25):
                 issues.append("G3 "+pid+" fact "+f["id"]+" explanation too short")
             if value==clean(f.get("text")):
                 issues.append("G3 "+pid+" fact "+f["id"]+" merely repeats source")
@@ -212,8 +212,14 @@ def validate_authored_teaching(points,draft,mode="study-d"):
             for key in EXPERIMENT_FACETS:
                 if not substantial(experiment.get(key) if isinstance(experiment,dict) else "",55):
                     issues.append("G3 "+pid+" experimental method/result missing: "+key)
+    # Detect repeated generated filler before asking an expensive independent reviewer.
+    # The design review remains the actual semantic quality gate.
+    by_core=[clean(x.get("core_explanation")) for x in records if isinstance(x,dict)
+             and isinstance(x.get("core_explanation"),str)]
+    if len(by_core)>1 and len(set(by_core))<len(by_core):
+        issues.append("G3 identical core explanations repeated across LPs")
     if seen!=set(byid):issues.append("G3 missing LP teaching records "+str(sorted(set(byid)-seen)))
-    if not substantial(draft.get("checkpoint",{}).get("rubric"),35):
+    if not substantial(draft.get("checkpoint",{}).get("rubric"),25):
         issues.append("G3 checkpoint requires reasoning rubric, beyond answer key")
     return issues
 

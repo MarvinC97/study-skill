@@ -1,4 +1,4 @@
-> **V6.3 Host-Native Study Skill** · 直接使用当前 Codex/DSH 会话模型与工具。完整保留学习者档案、G1–G6 质量门禁、首次建档、答题证据和进度恢复。无需单独配置模型 API 或密钥；HTML 浏览器验证需要宿主具备相应工具。
+> **V6.4 Host-Native Study Skill** · 直接使用当前 Codex/DSH 会话模型与工具。完整保留学习者档案、G1–G6 质量门禁、首次建档、答题证据和进度恢复。无需单独配置模型 API 或密钥；HTML 浏览器验证需要宿主具备相应工具。
 
 <p align="center">
   <img src="study/assets/icon.svg" alt="好好学习图标" width="84" />
@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/版本-V6.3-2563eb" />
+  <img alt="Version" src="https://img.shields.io/badge/版本-V6.4-2563eb" />
   <img alt="Agent Skill" src="https://img.shields.io/badge/类型-Agent%20Skill-7c3aed" />
   <img alt="Language" src="https://img.shields.io/badge/教学语言-中文-16a34a" />
   <img alt="Input" src="https://img.shields.io/badge/学习来源-书籍%20%7C%20GitHub%20%7C%20视频-f59e0b" />
@@ -27,7 +27,7 @@
 
 ## 这是什么？
 
-**好好学习（Study V6.3）** 是一个用于 AI Agent 的自适应学习 Skill。你可以给它一本书、一份 PDF、一个 GitHub 仓库链接，或者带有可读取内容的视频链接。它会基于实际读取的资料，先提取**知识点（Learning Points）**，梳理前置知识和依赖关系，再把知识点编排成适合逐步学习的 **Unit（学习单元）**。
+**好好学习（Study V6.4）** 是一个用于 AI Agent 的自适应学习 Skill。你可以给它一本书、一份 PDF、一个 GitHub 仓库链接，或者带有可读取内容的视频链接。它会基于实际读取的资料，先提取**知识点（Learning Points）**，梳理前置知识和依赖关系，再把知识点编排成适合逐步学习的 **Unit（学习单元）**。
 
 第一次使用时，它会引导你建立**学习者档案**，了解你已有的知识、学习目标和适合的讲解方式。之后的课程根据你的实际回答、理解困难和测验结果调整教学内容；完成阶段考核后，更新相应学习记录。
 
@@ -94,7 +94,11 @@ flowchart TD
 
 个人档案与答题记录应保存在使用者自己的受控目录中，**无需上传到公开 GitHub 仓库**。跨设备继续学习需要迁移或同步这些状态文件，单独安装 Skill 并不自动同步个人记录。
 
-## V6.3：两种学习粒度
+## V6.4：先设计，再生成课程
+
+Study 保留七个命令和 V3.5 学习状态。Curriculum Planner、Lesson Designer 和独立 Reviewer 是内部职责，由当前 Codex/DSH 宿主调度。新课程每页先制作 `lesson-specs/<page-id>.json`，通过独立教学设计审阅后才写正文；根据机制、实验、公式、故障案例选择具体视觉呈现。详细规则参见 [Lesson Design](study/references/lesson-design.md)。
+
+## V6.4：两种学习粒度
 
 普通 `/study` 先完整提取 LP，再按**同一目标、真实知识关系、共享案例及认知负担**将通常 2–4 个（允许 1–6 个）相关 LP 组合成一页完整 Unit；一页只有一个中心机制与综合检查点。`/study-d` 以**一个独立机制或实验一页**为默认，因果链紧密时可以合并 2–3 个（最多 4 个）LP，保留更深入的推导、图解、实验条件和渐进提问。两个模式沿用同一学习者档案与 LP 掌握证据。完整规则见 [Study 模式协议](study/references/study-modes.md)。
 
@@ -211,7 +215,7 @@ study/
 - **可恢复、可检查：** 提供本地状态和 Python 校验脚本；结构校验不等于教学质量已验证。
 - **依赖宿主能力：** 使用 Codex/DSH 现有模型与网页、文件、浏览器能力；HTML 交互和文件持久化按宿主实际支持情况执行。
 
-本项目当前为 **V6.3**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；仓库的许可信息见 [`LICENSE`](LICENSE)。
+本项目当前为 **V6.4**。公开发布前请确认第三方资料的引用、项目许可和个人数据的隔离范围；仓库的许可信息见 [`LICENSE`](LICENSE)。
 
 ---
 

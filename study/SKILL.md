@@ -1,6 +1,6 @@
 ---
 name: study
-version: "6.3"
+version: "6.4"
 description: >
   Host-native, source-grounded adaptive tutoring for Codex, DSH, and other
   agents. Activate on /study, /study-n, /study-e, /study-d, /study-q, /study-c,
@@ -8,7 +8,7 @@ description: >
   coverage, quality checks, user-approved deep outlines and persistent progress.
 ---
 
-# Study V6.3 — Host-Native Agent Skill
+# Study V6.4 — Host-Native Agent Skill
 
 ## Execution architecture — authoritative
 
@@ -70,8 +70,8 @@ Every LP retains separate source anchors and understanding evidence.
    before building the map. Read actual material, not only titles or summaries.
 2. Inventory complete bounded source scope. Preserve page/file/line/heading/
    timestamp anchors, conditions, exceptions, experiments, diagrams and code.
-3. Host authors `source.json`, `plan.json`, and `drafts/<page-id>.json`
-   through ordinary host tools; local checker validates structure and hashes.
+3. Host authors `source.json`, `plan.json`, reviewed `lesson-specs/<page-id>.json`
+   BEFORE `drafts/<page-id>.json`; checker verifies source/design hashes.
 4. For lessons load `references/lesson-teaching.md`,
    `references/writing-clarity.md`, `references/visual-semantics.md` and
    `references/interaction-design.md` as needed.
@@ -83,29 +83,26 @@ Every LP retains separate source anchors and understanding evidence.
    Preserve English technical terms, APIs, code and formulas with Chinese
    explanations on first occurrence. Label tutor inferences and extensions.
 
-## Strict deep-study quality contract (mandatory)
+## Design-first quality for all new lessons
 
-- G2/G4 reviewer records may reuse verified unchanged scope hashes. Author/review only changed batches or pages; any change to a reviewed scope invalidates its cache.
+Load `references/lesson-design.md`. Study Manager dispatches host-native
+`agents/curriculum-planner.md`, `agents/lesson-designer.md`, and
+`agents/independent-reviewer.md` (actual isolated tasks where available).
+After G2 approval, Designer writes `lesson-specs/<page-id>.json` FIRST:
+objective, causal/experimental visual, worked case, limits and transfer check.
+Independent Reviewer checks six design dimensions; save the source/plan/spec-
+bound receipt at `reviews/design/<page-id>.json`. Run `v6_agent.py design-check`
+BEFORE writing the teaching draft. Missing review blocks new page generation.
 
+G4 checks actual content and approved design hashes. Type-aware rendering
+shows meaningful flows, experiment comparisons, equations and failure paths.
+G5 checks real HTML; G6 confirms actual delivery. Word count and JSON shape
+are screening signals, not teaching acceptance. Pilot a mechanism, experiment
+and failure case with real independent review and Chromium before batch work.
 
-Load `references/quality-gates-v6.2.md` before any /study-d planning,
-authoring or review. G2 requires a complete atomic `source_inventory`,
-one independently teachable inventory item per LP; group up to four tightly related LPs into a page with a shared learning goal and source-grounded reason; exact source
-quotes per fact, explicit mapping of numbered experiments and thought questions,
-and real reviewer audits per LP and source span. User approval is required for
-the reviewed fine-grained plan before content drafting. Neither a requested
-page count nor an old 22-page draft is an approved outline.
-
-G3 requires `teaching_evidence` per LP: original mechanism explanation,
-causal steps, a worked example, applicability/limits, per-fact explanations,
-experimental methods/results where relevant, and a checkpoint reasoning rubric.
-Copied source facts or a three-paragraph generic summary cannot count as
-teaching. G4 supports compact per-fact source checks, focused risk reviews and page-level reviewer evidence for
-every fact and pedagogical dimension, tied to exact draft hashes. G5 reuses real browser results for unchanged HTML; it checks
-mobile/desktop, keyboard, JS-off and interaction behavior on the exact HTML
-bytes. G6 stays PREPARED until real learner-visible delivery confirmation.
-Legacy pages without this contract stay UNVERIFIED and are preserved for
-revision, rather than being silently marked complete.
+For Study-D also load `references/quality-gates-v6.2.md`: preserve complete
+LP/experiment/reflection coverage, independent G2 review and explicit user
+approval of the entire outline before generating lesson pages.
 
 ## Independent review and real Host gates
 

@@ -6,6 +6,7 @@ sys.path.insert(0,str(ROOT))
 sys.path.insert(0,str(ROOT/"v6tests"))
 import study_runtime as host
 import v6_agent as agent
+import quality_fixture as qf
 from test_incremental_quality import build_workspace,new_batched_review,shared_draft,page_review
 
 class IncrementalBrowserAndDelivery(unittest.TestCase):
@@ -23,7 +24,7 @@ class IncrementalBrowserAndDelivery(unittest.TestCase):
   page=self.plan["pages"][index]
   points=[p for p in self.plan["points"] if p["lp_id"] in page["lp_ids"]]
   draft=shared_draft(points)
-  host.atomic_json(self.w/"drafts"/(page["page_id"]+".json"),draft)
+  qf.prepare_design(self.w,self.plan,self.source,page,draft)
   review={"review_mode":"isolated_host_agent","writer_context_id":"writer-1",
           "reviewer_context_id":"reviewer-2",
           "source_sha256":self.source["source_sha256"],
@@ -69,8 +70,10 @@ class IncrementalBrowserAndDelivery(unittest.TestCase):
    item=host.next_delivery(self.w);host.confirm_delivery(self.w,item["file"])
   self.prepare(1)
   rendered=self.w/"draft-pages"/"P001.html"
-  rendered.write_text(rendered.read_text(encoding="utf-8").replace(
-      "Study V5","Study V6.2"),encoding="utf-8")
+  original=rendered.read_text(encoding="utf-8")
+  self.assertIn("SEE THE RELATIONSHIP",original)
+  rendered.write_text(original.replace(
+      "SEE THE RELATIONSHIP","EXAMINE THE RELATIONSHIP"),encoding="utf-8")
   result=host.browser_qa(self.w)
   self.assertTrue(result["passed"],result)
   self.assertEqual(result["pages_executed_now"],1)

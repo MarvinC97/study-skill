@@ -25,6 +25,8 @@ import urllib.error
 import zipfile
 import xml.etree.ElementTree as ET
 import quality_contract as qc
+import lesson_contract as lessons
+import lesson_render as lesson_renderer
 
 ROOT = Path(__file__).resolve().parent
 GATES = ("G1_SOURCE", "G2_PLAN", "G3_CONTENT", "G4_REVIEW", "G5_BROWSER", "G6_DELIVERY")
@@ -48,8 +50,9 @@ def atomic_json(path, obj):
         if os.path.exists(tmp): os.unlink(tmp)
 
 def write_text(path, value):
+    """Preserve LF UTF-8 bytes on Windows and Unix for reviewed HTML hashes."""
     path=Path(path); path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(value,encoding="utf-8")
+    path.write_bytes(value.encode("utf-8"))
 
 def state(ws):
     p=Path(ws)/"state.json"
@@ -399,7 +402,16 @@ def build_pages(ws, only_missing=True):
         if issues:raise GateError(page["page_id"]+" draft invalid: "+str(issues))
         prev="index.html" if i==0 else pages[i-1]["page_id"]+".html"
         nxt="index.html" if i==len(pages)-1 else pages[i+1]["page_id"]+".html"
-        h=html_page(page,points,draft,source,prev,nxt)
+        specfile=Path(ws)/"lesson-specs"/(page["page_id"]+".json")
+        if specfile.is_file():
+            spec=read_json(specfile)
+            errors=lessons.validate_spec(spec,page,points,source)
+            errors+=lessons.validate_draft_alignment(spec,draft)
+            if errors:raise GateError("invalid lesson design "+page["page_id"]+": "+str(errors[:12]))
+            h=lesson_renderer.render(page,points,draft,source,spec,prev,nxt)
+        else:
+            # Legacy/demo output only. New host entrypoints require design files.
+            h=html_page(page,points,draft,source,prev,nxt)
         write_text(out/pn,h); contents.append({"page_id":page["page_id"],"file":pn,"lp_ids":page["lp_ids"],"draft_sha256":sha(json.dumps(draft,ensure_ascii=False,sort_keys=True)), "rendered_sha256":sha(h)})
     idx=['<h1>Study V5 · 深度学习目录</h1><p>按知识依赖逐页阅读。每页包含完整解释、隐藏小问题和独立 Checkpoint。</p>']
     for p in pages:idx.append(f'<div class="card"><a href="{esc(p["page_id"])}.html">{esc(p["page_id"])} · {esc(p["title"])}</a></div>')
@@ -427,6 +439,13 @@ def content_static_check(ws):
         for text in qc.authored_text(draft):
             if qc.substantial(text,35) and esc(text) not in h:
                 issues.append(info["file"]+" authored explanatory text absent from HTML")
+        specpath=Path(ws)/"lesson-specs"/(info["page_id"]+".json")
+        if specpath.is_file():
+            spec=read_json(specpath)
+            if 'data-lesson-contract="lesson-design-v1"' not in h:
+                issues.append(info["file"]+" missing reviewed lesson-design layout")
+            if 'data-visual-kind="'+esc(spec["visual"]["kind"])+'"' not in h:
+                issues.append(info["file"]+" teaching visual was not rendered")
         for id in info["lp_ids"]:
             if f'data-teaching-lp="{esc(id)}"' not in h:
                 issues.append(info["file"]+" missing tutor-authored mechanism for "+id)
@@ -436,7 +455,8 @@ def content_static_check(ws):
                 if f'data-fact-id="{esc(fact["id"])}"' not in h: issues.append(f"{info['file']} missing source quote {fact['id']}")
                 if esc(fact["text"]) not in h:issues.append(f"{info['file']} lost source fact {fact['id']}")
         if 'class="check"' not in h and 'class="card check"' not in h:issues.append(info["file"]+" missing checkpoint")
-        if 'class="reveal"' not in h:issues.append(info["file"]+" missing interactive questions")
+        if 'class="reveal"' not in h and 'class="micro-details"' not in h:
+            issues.append(info["file"]+" missing accessible progressive questions")
         for link in re.findall(r'href="([^"]+)"',h):
             if link.endswith('.html') and not (pages_dir/link).exists():issues.append(info["file"]+" broken link "+link)
     report={"status":"pass" if not issues else "fail","issues":issues,"page_count":len(manifest["pages"])}
@@ -486,14 +506,23 @@ def browser_qa(ws, force=False):
                         expected=page.locator(".sim-controls button").last.get_attribute("data-observation")
                         if expected not in page.locator(".sim-result").inner_text():
                             issues.append(name+" simulation condition switch broken")
-                    if not page.locator("button.reveal").count():issues.append(name+" missing reveal")
-                    else:
+                    if page.locator(".question details.micro-details summary").count():
+                        disclosure=page.locator(".question details.micro-details").first
+                        disclosure.locator("summary").focus();page.keyboard.press("Enter")
+                        if not disclosure.locator(".answer").is_visible():
+                            issues.append(name+" native reveal keyboard broken")
+                        page.locator("button.reset").click()
+                        if disclosure.locator(".answer").is_visible():
+                            issues.append(name+" native reveal reset failed")
+                    elif page.locator("button.reveal").count():
                         page.locator("button.reveal").first.focus();page.keyboard.press("Enter")
                         if not page.locator(".question .answer").first.is_visible():
                             issues.append(name+" reveal keyboard broken")
-                    page.locator("button.reset").click()
-                    if page.locator(".question .answer").first.is_visible():
-                        issues.append(name+" reset failed")
+                        page.locator("button.reset").click()
+                        if page.locator(".question .answer").first.is_visible():
+                            issues.append(name+" reset failed")
+                    else:
+                        issues.append(name+" missing progressive question disclosure")
                     if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
                         issues.append(name+" mobile overflow")
                     page.set_viewport_size({"width":1280,"height":900})
