@@ -1,4 +1,4 @@
-# Study V6.3 · Host-Native Runtime Contract
+# Study V6.4 · Host-Native Runtime Contract
 
 This is the execution playbook for a Study Skill installed in Codex, DSH,
 or another agent host. The host's **already connected session model** performs
@@ -113,6 +113,19 @@ py -3.12 study/runtime/v6_agent.py freeze --workspace "<deep workspace>"
 
 The approval command must only be invoked as the consequence of real user
 approval for the exact plan hash.
+
+## V6.4 mandatory Lesson Specification before any new page
+
+Read `lesson-design.md`. The host's Lesson Designer writes `lesson-specs/<page-id>.json`
+before writing a lesson draft. The isolated reviewer receives actual source
+facts and spec, then saves `reviews/design/<page-id>.json` with distinct real
+contexts, source/plan/spec hashes and six checks. Run `v6_agent.py design-check
+--workspace WORKSPACE --page-id PAGE` and resolve failure before authoring
+`drafts/<page-id>.json`. All G4 content review entries include
+`lesson_spec_sha256` to bind the approved design. Both ordinary Study Units
+and deep pages use type-aware HTML with diagram/table/timeline/math presentation.
+Old already-delivered learning evidence remains. New draft generation fails
+closed on missing design receipts.
 
 ## G3/G4 — host-authored structured drafts and review
 
