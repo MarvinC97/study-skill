@@ -102,7 +102,7 @@ class DeepGateRegression(unittest.TestCase):
   for page in self.plan["pages"]:
    point=next(p for p in self.points if p["lp_id"]==page["lp_ids"][0])
    d=qf.draft(point);drafts[page["page_id"]]=d
-   host.atomic_json(self.w/"drafts"/(page["page_id"]+".json"),d)
+   qf.prepare_design(self.w,self.plan,self.source,page,d)
   review=qf.content_review(self.plan,self.source,drafts)
   review["pages"][0].pop("fact_audits")
   reviewpath=self.w/"review-input.json";host.atomic_json(reviewpath,review)
@@ -117,7 +117,7 @@ class DeepGateRegression(unittest.TestCase):
   for page in self.plan["pages"]:
    point=next(p for p in self.points if p["lp_id"]==page["lp_ids"][0])
    d=qf.draft(point);drafts[page["page_id"]]=d
-   host.atomic_json(self.w/"drafts"/(page["page_id"]+".json"),d)
+   qf.prepare_design(self.w,self.plan,self.source,page,d)
   receipt=qf.content_review(self.plan,self.source,drafts)
   rubber_stamp=receipt["pages"][0]["fact_audits"][0]["draft_quote"]
   for dimension in receipt["pages"][0]["quality_dimensions"]:
@@ -133,7 +133,7 @@ class DeepGateRegression(unittest.TestCase):
   for page in self.plan["pages"]:
    point=next(p for p in self.points if p["lp_id"]==page["lp_ids"][0])
    d=qf.draft(point);drafts[page["page_id"]]=d
-   host.atomic_json(self.w/"drafts"/(page["page_id"]+".json"),d)
+   qf.prepare_design(self.w,self.plan,self.source,page,d)
   review=qf.content_review(self.plan,self.source,drafts)
   rp=self.w/"content-review-input.json";host.atomic_json(rp,review)
   agent.accept_content_review(self.w,rp)
@@ -151,7 +151,7 @@ class DeepGateRegression(unittest.TestCase):
   for page in self.plan["pages"]:
    point=next(p for p in self.points if p["lp_id"]==page["lp_ids"][0])
    drafts[page["page_id"]]=qf.draft(point,page["title"])
-   host.atomic_json(self.w/"drafts"/(page["page_id"]+".json"),drafts[page["page_id"]])
+   qf.prepare_design(self.w,self.plan,self.source,page,drafts[page["page_id"]])
   rp=self.w/"content-review-input.json"
   host.atomic_json(rp,qf.content_review(self.plan,self.source,drafts))
   agent.accept_content_review(self.w,rp)
