@@ -25,6 +25,8 @@ class ThreeKindBrowserPilot(unittest.TestCase):
    html=renderer.render(self.page,self.points,draft,self.source,spec)
    path=self.w/"draft-pages"/(self.page["page_id"]+".html")
    host.write_text(path,html)
+   host.write_text(self.w/"draft-pages"/"index.html",
+       '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><h1>Lesson Pilot Index</h1></html>')
    host.atomic_json(self.w/"content-manifest.json",{
      "source_sha256":self.source["source_sha256"],"index":"index.html",
      "pages":[{"page_id":self.page["page_id"],"lp_ids":self.page["lp_ids"],
