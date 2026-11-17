@@ -190,6 +190,11 @@ def render(page, points, draft, source, spec, previous="index.html", following="
                               ("limitations","可外推的边界")):
                 rows.append('<p><strong>'+label+'：</strong>'+e(ex[key])+'</p>')
             rows.append('</section>')
+    if draft.get("sections"):
+        rows.append('<details class="card"><summary><strong>补充讲解与原文延伸</strong></summary>')
+        for section in draft["sections"]:
+            rows.append('<h3>'+e(section["heading"])+'</h3><p>'+e(section["text"])+'</p>')
+        rows.append('</details>')
     rows.append('<section class="card"><div class="mark">PREDICT FIRST</div>'
                 '<h2>先判断，再看解释</h2>')
     for item in draft.get("mini_questions",[]):
