@@ -10,6 +10,18 @@ Use the Unit's stable learning-point (LP) IDs, source-supported objectives and c
 
 Choose one main teaching form per coherent cluster using `visual-semantics.md`. Use `interaction-design.md` when an adjustable condition or step sequence reveals the mechanism, not merely to decorate a page.
 
+## V6.4 authoring handoff
+
+Before writing any new Unit HTML, read `lesson-design.md`. Author a compact
+`lesson-specs/<page-id>.json` establishing the learner-facing objective,
+meaningful visualization, one worked case and a changed-condition Checkpoint.
+The host's independent reviewer must approve the design via `design-check`
+before the full `drafts/<page-id>.json` is written. The full draft must
+preserve each LP's original fact explanation and use the same reviewed
+checkpoint question. G4 then reviews the actual draft, tied to the approved
+spec hash. A complete Unit teaches ONE coherent model instead of repeating
+every LP as a separate essay.
+
 ## Standard Unit grouping and LP identity
 
 Load `study-modes.md`. A standard Unit normally combines 2–4 LPs
