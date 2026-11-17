@@ -77,8 +77,10 @@ class V61PatchTests(unittest.TestCase):
         page='<html><p data-fact-id="F1">A necessary fact.</p></html>'
         with patch.object(v6_ops,'need_plan',return_value=(self.plan,v5.read_json(self.ws/'source.json'))), \
              patch.object(v5,'validate_content_data',return_value=[]), \
-             patch.object(v6_ops,'independent_review',return_value={'approved':True}), \
-             patch.object(v5,'html_page',return_value=page), \
+             patch.object(v6_ops.lessons,'verify_ready',return_value=({'checkpoint':{'question':'test'}},'fixture-design-sha')), \
+             patch.object(v6_ops.lessons,'validate_draft_alignment',return_value=[]), \
+             patch.object(v6_ops,'independent_review',return_value={'approved':True,'lesson_spec_sha256':'fixture-design-sha'}), \
+             patch.object(v6_ops.renderer,'render',return_value=page), \
              patch.object(v6_ops,'browser_check',return_value={'passed':True}):
             prepared=v6_ops.next_unit(self.ws)
             self.assertTrue(prepared['awaiting_confirmation'])
