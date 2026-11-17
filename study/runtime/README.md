@@ -1,4 +1,4 @@
-# Study V6.3 · Host-Native Runtime
+# Study V6.4 · Host-Native Runtime
 
 **Codex / DSH supplies the model via its already connected session.**
 Study requires no separate model API, token, endpoint, provider environment
@@ -41,6 +41,17 @@ Open the Study directory as an Agent Skill in Codex/DSH. The host interprets
 `/study`, `/study-n`, `/study-e`, `/study-d`, `/study-q`, `/study-c` and
 `/study-m`. Python CLI commands are *internal deterministic tools*, rather
 than seven standalone model API entrypoints.
+
+## V6.4 pre-render quality gate
+
+The host first writes `lesson-specs/P001.json` and obtains a genuine isolated
+review at `reviews/design/P001.json`. Run `v6_agent.py design-check --workspace
+WORKSPACE --page-id P001` **before writing** `drafts/P001.json`. G4 content
+review must bind the approved spec SHA256 as well as the draft SHA256. New
+Study and Study-D page entrypoints refuse an absent or stale design review.
+The type-aware HTML renderer presents meaningful diagrams and tests native
+keyboard disclosure and JS-off readability. See
+[`../references/lesson-design.md`](../references/lesson-design.md).
 
 ## Two learning modes
 
@@ -131,7 +142,7 @@ The local deterministic Stage operations are:
 ```text
 v6_agent.py:
   bind, ingest, plan-check, accept-plan-review, overview,
-  approve-outline, freeze, draft-check, render, check-content,
+  approve-outline, freeze, design-check, draft-check, render, check-content,
   accept-content-review, stage-next-page, verify, publish, deliver-next,
   confirm-delivery, hash-json, status
 
