@@ -120,6 +120,13 @@ def design_check(ws,page_id):
     w=Path(ws)
     plan=need(w,"frozen-plan.json") if (w/"frozen-plan.json").is_file() else need(w,"plan.json")
     source=need(w,"source.json")
+    reviewed=need(w,"reviews/plan-review.json")
+    if reviewed.get("approved") is not True or reviewed.get("plan_sha256")!=digest(plan):
+        raise host.GateError("G2 independently reviewed current outline required before design-check")
+    if plan.get("mode")=="study-d":
+        consent=need(w,"owner-outline-approval.json")
+        if consent.get("approved") is not True or consent.get("plan_sha256")!=digest(plan):
+            raise host.GateError("explicit learner approval of Study-D outline required before design-check")
     page=next((p for p in plan["pages"] if p["page_id"]==page_id),None)
     if page is None:raise host.GateError("unknown lesson page "+str(page_id))
     byid={p["lp_id"]:p for p in plan["points"]}
