@@ -115,6 +115,24 @@ def accept_plan_review(ws,review_file):
             "reviewed_batches":stored["reviewed_batches"],
             "reviewed_grouped_pages":stored["reviewed_grouped_pages"]}
 
+def design_check(ws,page_id):
+    """Explicit stop/go checkpoint BEFORE authoring the full lesson draft."""
+    w=Path(ws)
+    plan=need(w,"frozen-plan.json") if (w/"frozen-plan.json").is_file() else need(w,"plan.json")
+    source=need(w,"source.json")
+    page=next((p for p in plan["pages"] if p["page_id"]==page_id),None)
+    if page is None:raise host.GateError("unknown lesson page "+str(page_id))
+    byid={p["lp_id"]:p for p in plan["points"]}
+    try:
+        spec,design_hash=lessons.verify_ready(w,plan,page,source,
+                             [byid[i] for i in page["lp_ids"]])
+    except (lessons.LessonContractError,ValueError,TypeError,KeyError) as exc:
+        raise host.GateError("G3 design approval required before writing: "+str(exc))
+    return {"page_id":page_id,"lesson_kind":spec["lesson_kind"],
+            "design_reviewed":True,"lesson_spec_sha256":design_hash,
+            "checkpoint_question":spec["checkpoint"]["question"]}
+
+
 def design_ready(ws,plan,page,src,related,draft):
     """Hard gate: every NEW teaching page needs a real reviewed design."""
     try:
@@ -425,7 +443,7 @@ def status(ws):
 def main():
     p=argparse.ArgumentParser(description="Study host-native deterministic runtime (no model API)")
     p.add_argument("command",choices=("bind","ingest","plan-check","accept-plan-review",
-      "overview","approve-outline","freeze","draft-check","render","check-content",
+      "overview","approve-outline","freeze","design-check","draft-check","render","check-content",
       "accept-content-review","stage-next-page","verify","publish","deliver-next","confirm-delivery","hash-json","status"))
     p.add_argument("--workspace",required=True)
     p.add_argument("--source")
@@ -453,6 +471,9 @@ def main():
         elif a.command=="overview":result=overview(w)
         elif a.command=="approve-outline":result=host.approve_outline(w)
         elif a.command=="freeze":result=freeze(w)
+        elif a.command=="design-check":
+            if not a.page_id:raise host.GateError("design-check requires --page-id")
+            result=design_check(w,a.page_id)
         elif a.command=="draft-check":
             plan=need(w,"frozen-plan.json")
             if not a.page_id:raise host.GateError("draft-check requires --page-id")
