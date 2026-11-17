@@ -8,12 +8,17 @@ import lesson_render as lr
 import study_runtime as host
 import v6_agent as agent
 import quality_fixture as qf
-from test_incremental_quality import build_workspace,shared_draft
+from test_incremental_quality import build_workspace,shared_draft,new_batched_review
 
 class DesignFirstTests(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
   self.w,self.source,self.plan=build_workspace(Path(self.temp.name))
+  review=self.w/"plan-review-input.json"
+  host.atomic_json(review,new_batched_review(self.source,self.plan))
+  agent.accept_plan_review(self.w,review)
+  host.approve_outline(self.w)
+  agent.freeze(self.w)
   self.page=self.plan["pages"][0]
   self.points=[p for p in self.plan["points"] if p["lp_id"] in self.page["lp_ids"]]
   self.draft=shared_draft(self.points)
