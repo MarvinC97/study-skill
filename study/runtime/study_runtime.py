@@ -50,8 +50,9 @@ def atomic_json(path, obj):
         if os.path.exists(tmp): os.unlink(tmp)
 
 def write_text(path, value):
+    """Preserve LF UTF-8 bytes on Windows and Unix for reviewed HTML hashes."""
     path=Path(path); path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(value,encoding="utf-8")
+    path.write_bytes(value.encode("utf-8"))
 
 def state(ws):
     p=Path(ws)/"state.json"
