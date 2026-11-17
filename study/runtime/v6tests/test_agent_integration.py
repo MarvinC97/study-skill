@@ -48,10 +48,11 @@ class HostOpsIntegration(unittest.TestCase):
    learners.update_intake(w,map_reviewed=True)
    learners.update_intake(w,familiarity='Beginner')
    draft=shared_draft(points) if len(points)>1 else qf.draft(points[0],"Training Unit")
-   host.atomic_json(w/'drafts'/'U001.json',draft)
+   spec,design_hash=qf.prepare_design(w,plan,src,plan['pages'][0],draft)
    artifact={'points':points,'draft':draft}
    receipt={'review_mode':'isolated_host_agent','reviewer_context_id':'R2','writer_context_id':'W2',
        'artifact_sha256':agent.digest(draft),'checked_fact_ids':draft['represented_fact_ids'],
+       'lesson_spec_sha256':design_hash,
        'approved':True,'issues':[]}
    if len(points)>1:
     receipt['unit_coherence']={'coherent':True,'checked_lp_ids':[p['lp_id'] for p in points],
