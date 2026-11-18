@@ -10,6 +10,7 @@ import v61_learner as learners
 from v6_agent import obj,digest,stamp
 import lesson_contract as lessons
 import lesson_render as renderer
+import storyboard_contract as sb
 
 def h(s):return html.escape(str(s),quote=True)
 def slug(s):return re.sub(r'[^a-zA-Z0-9_-]','-',s.lower()).strip('-')[:48] or 'topic'
@@ -124,6 +125,11 @@ def next_unit(ws):
     raise v5.GateError('G3 Unit lesson design rejected: '+str(exc))
   alignment=lessons.validate_draft_alignment(spec,draft)
   if alignment:raise v5.GateError('Unit draft differs from reviewed design: '+str(alignment))
+  board=None;board_hash=None
+  if plan.get('render_contract')=='storyboard-v1':
+    try:board,board_hash=sb.storyboard_ready(w,plan,pg,points,spec,source)
+    except (sb.StoryboardError,KeyError,ValueError,TypeError) as exc:
+      raise v5.GateError('G3 Unit storyboard not independently approved: '+str(exc))
   issues=v5.validate_content_data(points,draft,mode='study')
   if issues:raise v5.GateError('content contract failure: '+str(issues))
   sm={x['id']:x for x in source['segments']}
@@ -132,6 +138,8 @@ def next_unit(ws):
   rev=independent_review(w,pg['page_id']+'-unit',ev,{'points':points,'draft':draft},required)
   if rev.get('lesson_spec_sha256')!=design_hash:
     raise v5.GateError('G4 Unit content review is not bound to approved Lesson Specification')
+  if board is not None and rev.get('storyboard_sha256')!=board_hash:
+    raise v5.GateError('G4 Unit content review is not bound to the approved storyboard')
   if len(points)>1:
     coherence=rev.get("unit_coherence",{})
     if (coherence.get("coherent") is not True or
@@ -143,15 +151,36 @@ def next_unit(ws):
   # The existing host-agent review receipt was verified against this exact draft.
   prev='overview.html' if index==0 else plan['pages'][index-1]['page_id']+'.html'
   nxt='overview.html'
-  pagehtml=renderer.render(pg,points,draft,source,spec,prev,nxt)
-  dest=w/'published'/f'{pg["page_id"]}.html';v5.write_text(dest,pagehtml.replace('Study V5','Study V6'))
-  if (w/'overview.html').exists():shutil.copy2(w/'overview.html',w/'published'/'overview.html')
+  pagehtml=renderer.render(pg,points,draft,source,spec,prev,nxt,storyboard=board)
+  if board is None:
+    dest=w/'published'/f'{pg["page_id"]}.html'
+  else:
+    # First invocation produces a reviewable HTML + screenshots. Publication
+    # is withheld until a real host reviewer signs off on the rendered page.
+    dest=w/'draft-pages'/f'{pg["page_id"]}.html'
+  v5.write_text(dest,pagehtml)
   for pt in points:
     for fact in pt['required_facts']:
       if h(fact['text']) not in pagehtml or f'data-fact-id="{h(fact["id"])}"' not in pagehtml:
-        dest.unlink();raise v5.GateError('render lost required fact '+fact['id'])
-  try:qa=browser_check(dest,selectors=['[data-fact-id]','.card.check button','details.micro-details summary'])
-  except Exception:dest.unlink();raise
+        raise v5.GateError('render lost required fact '+fact['id'])
+  selectors=['[data-fact-id]','[data-teaching-module="transfer-checkpoint"]'] if board else [
+    '[data-fact-id]','.card.check button','details.micro-details summary']
+  qa=browser_check(dest,selectors=selectors,storyboard=board)
+  if board is not None:
+    qa["manifest_sha256"]=v5.sha(dest.read_bytes())
+    qa["screenshots"]={pg["page_id"]:qa.pop("page_screenshots")}
+    v5.atomic_json(w/'reports'/('unit-browser-'+pg["page_id"]+'.json'),qa)
+    reviewfile=sb.path_set(w,pg["page_id"])[2]
+    if not reviewfile.is_file():
+      raise v5.GateError('G5 RENDER_REVIEW_PENDING: inspect '+str(dest)+
+        ' and the actual desktop/mobile screenshots; save independent review to '+str(reviewfile))
+    problems=sb.validate_render_review(sb.read(reviewfile),w,plan,pg,
+                                        source,spec,board,dest,qa)
+    if problems:raise v5.GateError('G5 Unit render review rejected: '+str(problems[:12]))
+    final=w/'published'/f'{pg["page_id"]}.html'
+    final.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copy2(dest,final);dest=final
+  if (w/'overview.html').exists():shutil.copy2(w/'overview.html',w/'published'/'overview.html')
   receipt=record(w,'unit',dest,pg['title'],ids)
   fingerprint=v5.sha(dest.read_bytes())
   v5.atomic_json(w/'unit-delivery-pending.json',
