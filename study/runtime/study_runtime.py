@@ -27,6 +27,7 @@ import xml.etree.ElementTree as ET
 import quality_contract as qc
 import lesson_contract as lessons
 import lesson_render as lesson_renderer
+import storyboard_contract as sb
 
 ROOT = Path(__file__).resolve().parent
 GATES = ("G1_SOURCE", "G2_PLAN", "G3_CONTENT", "G4_REVIEW", "G5_BROWSER", "G6_DELIVERY")
@@ -408,7 +409,11 @@ def build_pages(ws, only_missing=True):
             errors=lessons.validate_spec(spec,page,points,source)
             errors+=lessons.validate_draft_alignment(spec,draft)
             if errors:raise GateError("invalid lesson design "+page["page_id"]+": "+str(errors[:12]))
-            h=lesson_renderer.render(page,points,draft,source,spec,prev,nxt)
+            if plan.get("render_contract")=="storyboard-v1":
+                board,_=sb.storyboard_ready(ws,plan,page,points,spec,source)
+                h=lesson_renderer.render(page,points,draft,source,spec,prev,nxt,storyboard=board)
+            else:
+                h=lesson_renderer.render(page,points,draft,source,spec,prev,nxt)
         else:
             # Legacy/demo output only. New host entrypoints require design files.
             h=html_page(page,points,draft,source,prev,nxt)
@@ -442,10 +447,24 @@ def content_static_check(ws):
         specpath=Path(ws)/"lesson-specs"/(info["page_id"]+".json")
         if specpath.is_file():
             spec=read_json(specpath)
-            if 'data-lesson-contract="lesson-design-v1"' not in h:
-                issues.append(info["file"]+" missing reviewed lesson-design layout")
-            if 'data-visual-kind="'+esc(spec["visual"]["kind"])+'"' not in h:
-                issues.append(info["file"]+" teaching visual was not rendered")
+            if plan.get("render_contract")=="storyboard-v1":
+                if 'data-lesson-contract="lesson-storyboard-v1"' not in h:
+                    issues.append(info["file"]+" missing approved storyboard layout")
+                boardpath=Path(ws)/"storyboards"/(info["page_id"]+".json")
+                if not boardpath.is_file():
+                    issues.append(info["file"]+" missing storyboard")
+                else:
+                    board=read_json(boardpath)
+                    for scene in board.get("scenes",[]):
+                        if 'data-scene-id="'+esc(scene["id"])+'"' not in h:
+                            issues.append(info["file"]+" missing storyboard scene "+scene["id"])
+                        if 'data-teaching-module="'+esc(scene["module"])+'"' not in h:
+                            issues.append(info["file"]+" missing component "+scene["module"])
+            else:
+                if 'data-lesson-contract="lesson-design-v1"' not in h:
+                    issues.append(info["file"]+" missing reviewed lesson-design layout")
+                if 'data-visual-kind="'+esc(spec["visual"]["kind"])+'"' not in h:
+                    issues.append(info["file"]+" teaching visual was not rendered")
         for id in info["lp_ids"]:
             if f'data-teaching-lp="{esc(id)}"' not in h:
                 issues.append(info["file"]+" missing tutor-authored mechanism for "+id)
@@ -454,8 +473,11 @@ def content_static_check(ws):
                     issues.append(f"{info['file']} missing authored explanation for {fact['id']}")
                 if f'data-fact-id="{esc(fact["id"])}"' not in h: issues.append(f"{info['file']} missing source quote {fact['id']}")
                 if esc(fact["text"]) not in h:issues.append(f"{info['file']} lost source fact {fact['id']}")
-        if 'class="check"' not in h and 'class="card check"' not in h:issues.append(info["file"]+" missing checkpoint")
-        if 'class="reveal"' not in h and 'class="micro-details"' not in h:
+        if ('class="check"' not in h and 'class="card check"' not in h
+                and 'data-teaching-module="transfer-checkpoint"' not in h):
+            issues.append(info["file"]+" missing checkpoint")
+        if ('class="reveal"' not in h and 'class="micro-details"' not in h
+                and 'class="micro-details question"' not in h):
             issues.append(info["file"]+" missing accessible progressive questions")
         for link in re.findall(r'href="([^"]+)"',h):
             if link.endswith('.html') and not (pages_dir/link).exists():issues.append(info["file"]+" broken link "+link)
