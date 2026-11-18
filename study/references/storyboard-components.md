@@ -159,3 +159,6 @@ Existing V6.4 plans without `render_contract` keep their historical renderer.
 All previously delivered HTML, V3.5 learner profiles, real answers, progress
 and nested Study-D return points remain untouched. New V6.5 course plans
 must explicitly opt in to `storyboard-v1` and pass these stricter gates.
+
+
+Screenshot-bound Render Review also requires screenshot_sha256 (mobile/desktop) matching the actual Chromium screenshot files.
