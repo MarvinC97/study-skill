@@ -61,3 +61,7 @@ A syntactically valid review receipt establishes traceability only.
 Actual semantic acceptance depends on the isolated reviewer examining the
 source and making defensible judgments. Distinguish software PASS, reviewer
 PASS and real learner understanding. Fixture results must be labelled as such.
+
+Render-review JSON must include screenshot_sha256 for mobile and desktop from
+actual Chromium artifacts, in addition to the HTML and storyboard hashes.
+Changed screenshots invalidate the independent review even when HTML is unchanged.
