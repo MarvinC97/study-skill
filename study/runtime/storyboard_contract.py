@@ -286,6 +286,8 @@ def validate_render_review(review,ws,plan,page,source,spec,storyboard,htmlpath,q
             path=Path(entry.get("file",""))
             if not path.is_file() or file_hash(path)!=entry.get("sha256"):
                 errs.append("missing/modified "+kind+" browser screenshot")
+            if review.get("screenshot_sha256",{}).get(kind)!=entry.get("sha256"):
+                errs.append("render reviewer did not attest the actual "+kind+" screenshot hash")
     if review.get("approved") is not True or review.get("issues"):
         errs.append("render review rejected")
     checks=review.get("checks",[])
