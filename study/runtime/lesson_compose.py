@@ -295,7 +295,7 @@ def render(page,points,draft,source,spec,storyboard,previous="index.html",follow
          '<header class="hero"><div class="eyebrow">STUDY · '+h(spec["lesson_kind"])+' · '+
          h(page["page_id"])+'</div><h1>'+h(draft["title"])+'</h1>',
          '<p class="sub">'+h(spec["objective"])+'</p><p class="hero-question" data-core="goal"><strong>本页问题：</strong>'+
-         h(spec["central_question"])+'</p><p>'+h(storyboard["narrative"])+'</p></header>',
+         h(spec["central_question"])+'</p><p>'+h(draft["intro"])+'</p><p>'+h(storyboard["narrative"])+'</p></header>',
          '<div class="board layout-'+h(storyboard["layout"])+'">']
     for i,sc in enumerate(storyboard["scenes"]):out.append(_render_scene(sc,i))
     out.append('</div><section class="card" data-core="mechanism"><h2>把机制说清楚</h2>')
