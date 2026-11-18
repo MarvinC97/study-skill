@@ -1,7 +1,7 @@
-name: Study V6.4 design-first regression
+name: Study V6.5 design-first regression
 on:
   push:
-    branches: [feat/v6.4-lesson-design-quality]
+    branches: [feat/v6.5-lesson-design-quality]
   pull_request:
     paths:
       - 'study/runtime/**'
@@ -40,6 +40,10 @@ jobs:
         run: python -m unittest discover -s study/runtime/tests -p 'test_incremental_stage.py' -v
       - name: Three teaching-shape pilots with actual Chromium
         run: python -m unittest discover -s study/runtime/tests -p 'test_lesson_visuals.py' -v
+      - name: Storyboard composition, source mapping and component validation
+        run: python -m unittest discover -s study/runtime/v6tests -p 'test_storyboard_components.py' -v
+      - name: Actual Chromium component interactions and screenshot-bound Render Review
+        run: python -m unittest discover -s study/runtime/tests -p 'test_storyboard_browser.py' -v
       - name: Skill metadata and reference integrity
         run: python study/tests/validate_skill.py
       - name: Reject reintroduction of standalone provider requirements
