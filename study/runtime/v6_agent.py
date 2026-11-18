@@ -15,6 +15,7 @@ import v61_learner as learners
 import quality_contract as qc
 import lesson_contract as lessons
 import lesson_render as renderer
+import storyboard_contract as sb
 
 def load(p):
     return host.read_json(p)
@@ -151,6 +152,56 @@ def design_ready(ws,plan,page,src,related,draft):
         raise host.GateError("G3 lesson design is not accepted: "+str(exc))
 
 
+def storyboard_ready(ws,plan,page,source,related,spec):
+    """New plans use the component storyboard; V6.4 historical plans stay readable."""
+    if plan.get("render_contract")!="storyboard-v1":return None,None
+    try:
+        return sb.storyboard_ready(ws,plan,page,related,spec,source)
+    except (sb.StoryboardError,ValueError,KeyError,TypeError) as exc:
+        raise host.GateError("G3 storyboard review required before content production: "+str(exc))
+
+
+def storyboard_check(ws,page_id):
+    w=Path(ws);design_check(w,page_id)
+    plan=need(w,"frozen-plan.json") if (w/"frozen-plan.json").is_file() else need(w,"plan.json")
+    if plan.get("render_contract")!="storyboard-v1":
+        raise host.GateError("This legacy plan uses the V6.4 renderer; V6.5 plans must declare render_contract=storyboard-v1")
+    source=need(w,"source.json")
+    page=next((p for p in plan["pages"] if p["page_id"]==page_id),None)
+    if page is None:raise host.GateError("unknown storyboard page")
+    lookup={p["lp_id"]:p for p in plan["points"]}
+    spec,_=lessons.verify_ready(w,plan,page,source,[lookup[i] for i in page["lp_ids"]])
+    storyboard,sh=storyboard_ready(w,plan,page,source,[lookup[i] for i in page["lp_ids"]],spec)
+    return {"storyboard_reviewed":True,"page_id":page_id,
+            "storyboard_sha256":sh,"layout":storyboard["layout"],
+            "modules":[v["module"] for v in storyboard["scenes"]]}
+
+
+def render_review_check(ws,page_id,qa=None,html_file=None):
+    w=Path(ws);plan=need(w,"frozen-plan.json")
+    if plan.get("render_contract")!="storyboard-v1":
+        return {"legacy":True,"render_review_required":False}
+    src=need(w,"source.json")
+    page=next((p for p in plan["pages"] if p["page_id"]==page_id),None)
+    if page is None:raise host.GateError("unknown page in render review")
+    byid={p["lp_id"]:p for p in plan["points"]}
+    pts=[byid[x] for x in page["lp_ids"]]
+    draft=need(w,"drafts/"+page_id+".json")
+    spec,_=design_ready(w,plan,page,src,pts,draft)
+    board,_=storyboard_ready(w,plan,page,src,pts,spec)
+    path=Path(html_file) if html_file else w/"draft-pages"/(page_id+".html")
+    qa=qa if qa is not None else need(w,"reports/browser.json")
+    reviewpath=sb.path_set(w,page_id)[2]
+    if not reviewpath.is_file():
+        raise host.GateError("G5 RENDER_REVIEW_PENDING: inspect actual desktop/mobile screenshots "
+                             "and rendered HTML, then save an independent review at "+str(reviewpath))
+    review=load(reviewpath)
+    problems=sb.validate_render_review(review,w,plan,page,src,spec,board,path,qa)
+    if problems:raise host.GateError("G5 render review rejected: "+str(problems[:12]))
+    return {"render_reviewed":True,"html_sha256":sb.file_hash(path),
+            "storyboard_sha256":sb.fingerprint(board),"review_file":str(reviewpath)}
+
+
 def accept_content_review(ws,review_file):
     plan=need(ws,"frozen-plan.json");src=need(ws,"source.json")
     rev=load(review_file)
@@ -186,6 +237,9 @@ def accept_content_review(ws,review_file):
         errors=host.validate_content_data(relevant,draft,mode=plan.get("mode","study-d"))
         if errors:raise host.GateError("invalid reviewed draft "+pid+": "+str(errors))
         spec,design_hash=design_ready(ws,plan,page,src,relevant,draft)
+        board,board_hash=storyboard_ready(ws,plan,page,src,relevant,spec)
+        if board and entry.get("storyboard_sha256")!=board_hash:
+            raise host.GateError("G4 content review must match the approved storyboard "+pid)
         if entry.get("lesson_spec_sha256")!=design_hash:
             raise host.GateError("G4 content review is not bound to the approved lesson design "+pid)
         required={f["id"] for p in relevant for f in p["required_facts"]}
@@ -204,6 +258,7 @@ def accept_content_review(ws,review_file):
         if quality:
             raise host.GateError("G4 shallow/ungrounded lesson rejected "+pid+": "+str(quality[:14]))
         receipt={"page_id":pid,"approved":True,"issues":[],
+          "storyboard_sha256":board_hash,
           "lesson_spec_sha256":design_hash,
           "checked_fact_ids":sorted(required),"draft_sha256":dsha,
           "quality_dimensions":entry["quality_dimensions"],
@@ -266,6 +321,7 @@ def stage_next_page(ws,review_file):
     lookup={p["lp_id"]:p for p in plan["points"]}
     related=[lookup[lp] for lp in next_page["lp_ids"]]
     spec,design_hash=design_ready(w,plan,next_page,src,related,draft)
+    board,board_hash=storyboard_ready(w,plan,next_page,src,related,spec)
     errors=host.validate_content_data(related,draft,mode="study-d")
     if errors:raise host.GateError("G3 draft rejected "+pid+": "+str(errors[:12]))
     rev=load(review_file)
@@ -283,6 +339,7 @@ def stage_next_page(ws,review_file):
     if (set(entry.get("checked_fact_ids",[]))!=required or
         entry.get("draft_sha256")!=digest(draft) or
         entry.get("lesson_spec_sha256")!=design_hash or
+        (board is not None and entry.get("storyboard_sha256")!=board_hash) or
         entry.get("approved") is not True or entry.get("issues")):
         raise host.GateError("G4 fact coverage, approval or draft hash mismatch")
     if entry.get("review_contract")=="g4-compact-v3" and (
@@ -292,12 +349,13 @@ def stage_next_page(ws,review_file):
     if issues:raise host.GateError("G4 semantic review failed: "+str(issues[:12]))
     # Generated navigation links only to the index until neighbors are ready.
     dest=w/"draft-pages"/(pid+".html")
-    html=renderer.render(next_page,related,draft,src,spec,"index.html","index.html")
+    html=renderer.render(next_page,related,draft,src,spec,"index.html","index.html",
+                         storyboard=board)
     host.write_text(dest,html)
     staged=ledger["pages"]+[{"page_id":pid,"file":pid+".html",
         "lp_ids":next_page["lp_ids"],"draft_sha256":digest(draft),
         "rendered_sha256":host.sha(html),
-        "lesson_spec_sha256":design_hash,
+        "lesson_spec_sha256":design_hash,"storyboard_sha256":board_hash,
         "review_scope_sha256":qc.content_page_scope(src,plan,next_page,draft),
         "reviewer_context_id":rev["reviewer_context_id"],
         "review_contract":entry.get("review_contract","deep-semantic-v2")}]
@@ -317,6 +375,8 @@ def stage_next_page(ws,review_file):
     browser=host.browser_qa(w)
     if browser.get("passed") is not True or browser.get("browser_executed") is not True:
         raise host.GateError("G5 real browser QA failed: "+str(browser.get("issues",[])))
+    if board is not None:
+        render_review_check(w,pid,qa=browser,html_file=dest)
     out=w/"published";out.mkdir(exist_ok=True)
     shutil.copy2(dest,out/(pid+".html"))
     shutil.copy2(w/"draft-pages"/"index.html",out/"index.html")
@@ -364,6 +424,10 @@ def check_review_integrity(ws):
         draft=need(ws,"drafts/"+pid+".json")
         spec,design_hash=design_ready(ws,plan,page,src,
             [lookup[i] for i in page["lp_ids"]],draft)
+        board,board_hash=storyboard_ready(ws,plan,page,src,
+            [lookup[i] for i in page["lp_ids"]],spec)
+        if board and entry.get("storyboard_sha256")!=board_hash:
+            raise host.GateError("G4 content review for another storyboard "+pid)
         if entry.get("lesson_spec_sha256")!=design_hash:
             raise host.GateError("G4 lesson design changed after review "+pid)
         if digest(draft)!=entry.get("draft_sha256"):
@@ -376,7 +440,8 @@ def render(ws):
     lookup={p["lp_id"]:p for p in plan["points"]}
     for page in plan["pages"]:
         draft=need(ws,"drafts/"+page["page_id"]+".json")
-        design_ready(ws,plan,page,src,[lookup[i] for i in page["lp_ids"]],draft)
+        spec,_=design_ready(ws,plan,page,src,[lookup[i] for i in page["lp_ids"]],draft)
+        storyboard_ready(ws,plan,page,src,[lookup[i] for i in page["lp_ids"]],spec)
     return host.build_pages(ws)
 
 def verify(ws):
@@ -386,10 +451,16 @@ def verify(ws):
         raise host.GateError("approved plan changed before verification")
     check_review_integrity(ws)
     host.verify(ws)
+    for page in plan["pages"]:
+        render_review_check(ws,page["page_id"])
     return host.state(ws).get("gates",{})
 
 def publish(ws):
     check_review_integrity(ws)
+    plan=need(ws,"frozen-plan.json")
+    if plan.get("render_contract")=="storyboard-v1":
+        for page in plan["pages"]:
+            render_review_check(ws,page["page_id"])
     out=host.publish(ws)
     binding=root_bound(ws)
     if binding and binding.get("parent_workspace"):
@@ -450,7 +521,7 @@ def status(ws):
 def main():
     p=argparse.ArgumentParser(description="Study host-native deterministic runtime (no model API)")
     p.add_argument("command",choices=("bind","ingest","plan-check","accept-plan-review",
-      "overview","approve-outline","freeze","design-check","draft-check","render","check-content",
+      "overview","approve-outline","freeze","design-check","storyboard-check","render-review-check","draft-check","render","check-content",
       "accept-content-review","stage-next-page","verify","publish","deliver-next","confirm-delivery","hash-json","status"))
     p.add_argument("--workspace",required=True)
     p.add_argument("--source")
@@ -481,6 +552,12 @@ def main():
         elif a.command=="design-check":
             if not a.page_id:raise host.GateError("design-check requires --page-id")
             result=design_check(w,a.page_id)
+        elif a.command=="storyboard-check":
+            if not a.page_id:raise host.GateError("storyboard-check requires --page-id")
+            result=storyboard_check(w,a.page_id)
+        elif a.command=="render-review-check":
+            if not a.page_id:raise host.GateError("render-review-check requires --page-id")
+            result=render_review_check(w,a.page_id)
         elif a.command=="draft-check":
             plan=need(w,"frozen-plan.json")
             if not a.page_id:raise host.GateError("draft-check requires --page-id")

@@ -1,4 +1,4 @@
-# Study V6.4 · Host-Native Runtime
+# Study V6.5 · Host-Native Runtime
 
 **Codex / DSH supplies the model via its already connected session.**
 Study requires no separate model API, token, endpoint, provider environment
@@ -42,7 +42,27 @@ Open the Study directory as an Agent Skill in Codex/DSH. The host interprets
 `/study-m`. Python CLI commands are *internal deterministic tools*, rather
 than seven standalone model API entrypoints.
 
-## V6.4 pre-render quality gate
+## V6.5 component storyboard and actual rendered-page review
+
+For NEW plans, set `render_contract: storyboard-v1` in the approved
+`plan.json`. G3 sequence: `lesson-specs/<page-id>.json` → isolated design
+review → `design-check` → `storyboards/<page-id>.json` → isolated storyboard
+review → `storyboard-check` → full content draft and G4 review. New pages
+are composed with the eight safe teaching modules and three layout shells.
+
+G5 runs Chromium at 390px and 1280px, tests actual component computations,
+branching, disclosure and reset, and produces `reports/screens/*.png`.
+Then an independent Render Reviewer inspects actual HTML/screenshots and
+writes `reviews/render/<page-id>.json`; run `render-review-check`.
+`stage-next-page` holds the page with `G5 RENDER_REVIEW_PENDING` until the
+matching review exists, then publishes the exact reviewed bytes. For batch
+production, `publish` also verifies each rendered-page review. Previously
+delivered V3.5/V6.5 course data remains in place.
+
+See `../references/storyboard-components.md` for the exact format and
+workflows. No extra LLM provider, WSL2 or user-facing slash command.
+
+## V6.5 pre-render quality gate
 
 The host first writes `lesson-specs/P001.json` and obtains a genuine isolated
 review at `reviews/design/P001.json`. Run `v6_agent.py design-check --workspace

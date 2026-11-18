@@ -10,6 +10,7 @@ import v61_learner as learners
 from v6_agent import obj,digest,stamp
 import lesson_contract as lessons
 import lesson_render as renderer
+import storyboard_contract as sb
 
 def h(s):return html.escape(str(s),quote=True)
 def slug(s):return re.sub(r'[^a-zA-Z0-9_-]','-',s.lower()).strip('-')[:48] or 'topic'
@@ -60,46 +61,91 @@ def independent_review(ws,role,source,artifact,required_ids):
     raise v5.GateError("reviewer rejected "+role+": "+str(result.get("issues",[])))
   return result
 
-def browser_check(html_file,selectors=()):
-  """Validate the actual Unit HTML; checks more than mobile overflow."""
+def browser_check(html_file,selectors=(),storyboard=None):
+  """Real Chrome interaction and screenshot receipt for one standard Unit."""
   try:from playwright.sync_api import sync_playwright
-  except ImportError:raise v5.GateError('Playwright missing; Unit is unverified')
-  issues=[];html_text=Path(html_file).read_text(encoding='utf-8')
+  except ImportError:raise v5.GateError('Playwright missing; page is unverified')
+  issues=[];file=Path(html_file);html_text=file.read_text(encoding='utf-8')
+  shots={}
   with sync_playwright() as p:
     b=p.chromium.launch(headless=True,
       executable_path=os.environ.get('STUDY_CHROMIUM') or shutil.which('chromium')
       or shutil.which('google-chrome') or None)
     for width in (390,1280):
       page=b.new_page(viewport={'width':width,'height':820})
+      page_errors=[]
+      page.on('pageerror',lambda exc:page_errors.append(str(exc)))
       page.set_content(html_text)
+      if page.evaluate('document.documentElement.scrollWidth > innerWidth+3'):
+        issues.append('mobile overflow' if width==390 else 'desktop overflow')
       for css in selectors:
         if page.locator(css).count()==0:issues.append('missing '+css)
-      if page.evaluate('document.documentElement.scrollWidth > innerWidth+3'):
-        issues.append(('mobile' if width==390 else 'desktop')+' overflow')
-      if page.locator('.check button[data-correct=true]').count():
-        page.locator('.check button[data-correct=true]').first.click()
+      if storyboard:
+        scenes=page.locator('[data-teaching-module]')
+        if scenes.count()!=len(storyboard['scenes']):issues.append('incomplete storyboard components')
+        transfer=page.locator('[data-teaching-module="transfer-checkpoint"]')
+        if transfer.count()!=1:issues.append('missing transfer component')
+        else:
+          choices=next(x['props']['options'] for x in storyboard['scenes']
+                       if x['module']=='transfer-checkpoint')
+          answer=next((i for i,x in enumerate(choices) if x.get('correct') is True),None)
+          if answer is None or transfer.locator('.interactive button').count()!=len(choices):
+            issues.append('transfer answers not rendered')
+          else:
+            transfer.locator('.interactive button').nth(answer).click()
+            if not transfer.locator('.feedback').inner_text().startswith('正确'):
+              issues.append('transfer feedback did not verify answer')
+        for kind in ('variable-lab','decision-explorer','math-stepper',
+                     'experiment-comparator','trace-debugger','causal-flow','worked-example'):
+          comp=page.locator('[data-teaching-module="'+kind+'"]')
+          if comp.count()==0:continue
+          first=comp.first
+          area=first.locator('.interactive')
+          if kind=='variable-lab':
+            slider=area.locator('input[type=range]')
+            if not slider.count():issues.append('missing slider')
+            else:
+              before=area.locator('.readout span').inner_text()
+              slider.first.evaluate("(el)=>{el.value=el.value===el.max?el.min:el.max;el.dispatchEvent(new Event('input',{bubbles:true}))}")
+              if before==area.locator('.readout span').inner_text():
+                issues.append('variable lab failed to update calculation')
+          elif kind=='decision-explorer':
+            area.locator('button').first.click()
+            if not area.locator('.path li').count():issues.append('decision path not updated')
+          elif kind=='experiment-comparator':
+            area.locator('button').first.click()
+            if not first.locator('tr.active-row').count():issues.append('experiment comparison not updated')
+          elif kind=='trace-debugger':
+            area.locator('button').first.click()
+            if not area.locator('.info').inner_text():issues.append('debug trace missing evidence')
+          elif kind in ('math-stepper','worked-example'):
+            area.locator('button').first.click()
+            if not area.locator('.math-step').count():issues.append(kind+' did not reveal its next step')
+          else:
+            area.locator('.flow-node').last.click()
+            if not area.locator('.flow-node.active').count():issues.append('causal flow did not select a state')
+      elif page.locator('.card.check button[data-correct=true]').count():
+        page.locator('.card.check button[data-correct=true]').first.click()
         if not page.locator('.feedback').inner_text().startswith('正确'):
-          issues.append('checkpoint feedback broken')
-      if page.locator('.question details.micro-details summary').count():
-        t=page.locator('.question details.micro-details').first
-        t.locator('summary').focus();page.keyboard.press('Enter')
-        if not t.locator('.answer').is_visible():issues.append('native reveal keyboard broken')
-        page.locator('button.reset').click()
-        if t.locator('.answer').is_visible():issues.append('native reveal reset broken')
-      elif page.locator('button.reveal').count():
-        page.locator('button.reveal').first.focus();page.keyboard.press('Enter')
-        if not page.locator('.question .answer').first.is_visible():
-          issues.append('reveal keyboard broken')
-      else:issues.append('Unit has no progressive question')
+          issues.append('legacy Checkpoint feedback broken')
+      if width==390 and storyboard:
+        d=file.parent.parent/'reports'/'screens';d.mkdir(parents=True,exist_ok=True)
+        fn=d/(file.stem+'-390.png');page.screenshot(path=str(fn),full_page=True)
+        shots['mobile']={'file':str(fn.resolve()),'sha256':v5.sha(fn.read_bytes())}
+      if width==1280 and storyboard:
+        d=file.parent.parent/'reports'/'screens';d.mkdir(parents=True,exist_ok=True)
+        fn=d/(file.stem+'-1280.png');page.screenshot(path=str(fn),full_page=True)
+        shots['desktop']={'file':str(fn.resolve()),'sha256':v5.sha(fn.read_bytes())}
+      if page_errors:issues.append('page script error: '+str(page_errors[:2]))
       page.close()
-    static=b.new_page(java_script_enabled=False)
-    static.set_content(html_text)
-    if static.locator('[data-core]').count()<3 or static.locator('[data-fact-id]').count()==0:
-      issues.append('JS-disabled core lesson or source missing')
+    static=b.new_page(java_script_enabled=False);static.set_content(html_text)
+    if static.locator('[data-core]').count()<3 or not static.locator('[data-fact-id]').count():
+      issues.append('JS-disabled teaching or source missing')
     static.close();b.close()
   if issues:raise v5.GateError('browser QA failed: '+', '.join(issues))
-  return {'browser_executed':True,'viewports':[390,1280],'passed':True,
-          'keyboard_tested':True,'js_disabled_tested':True,'interactive_tested':True}
+  return {'browser_executed':True,'viewports_tested':[390,1280],
+    'keyboard_tested':True,'js_disabled_tested':True,'interactive_tested':True,
+    'passed':True,'page_screenshots':shots}
 
 def next_unit(ws):
   w=Path(ws);plan,source=need_plan(w)
@@ -124,6 +170,11 @@ def next_unit(ws):
     raise v5.GateError('G3 Unit lesson design rejected: '+str(exc))
   alignment=lessons.validate_draft_alignment(spec,draft)
   if alignment:raise v5.GateError('Unit draft differs from reviewed design: '+str(alignment))
+  board=None;board_hash=None
+  if plan.get('render_contract')=='storyboard-v1':
+    try:board,board_hash=sb.storyboard_ready(w,plan,pg,points,spec,source)
+    except (sb.StoryboardError,KeyError,ValueError,TypeError) as exc:
+      raise v5.GateError('G3 Unit storyboard not independently approved: '+str(exc))
   issues=v5.validate_content_data(points,draft,mode='study')
   if issues:raise v5.GateError('content contract failure: '+str(issues))
   sm={x['id']:x for x in source['segments']}
@@ -132,6 +183,8 @@ def next_unit(ws):
   rev=independent_review(w,pg['page_id']+'-unit',ev,{'points':points,'draft':draft},required)
   if rev.get('lesson_spec_sha256')!=design_hash:
     raise v5.GateError('G4 Unit content review is not bound to approved Lesson Specification')
+  if board is not None and rev.get('storyboard_sha256')!=board_hash:
+    raise v5.GateError('G4 Unit content review is not bound to the approved storyboard')
   if len(points)>1:
     coherence=rev.get("unit_coherence",{})
     if (coherence.get("coherent") is not True or
@@ -143,15 +196,36 @@ def next_unit(ws):
   # The existing host-agent review receipt was verified against this exact draft.
   prev='overview.html' if index==0 else plan['pages'][index-1]['page_id']+'.html'
   nxt='overview.html'
-  pagehtml=renderer.render(pg,points,draft,source,spec,prev,nxt)
-  dest=w/'published'/f'{pg["page_id"]}.html';v5.write_text(dest,pagehtml.replace('Study V5','Study V6'))
-  if (w/'overview.html').exists():shutil.copy2(w/'overview.html',w/'published'/'overview.html')
+  pagehtml=renderer.render(pg,points,draft,source,spec,prev,nxt,storyboard=board)
+  if board is None:
+    dest=w/'published'/f'{pg["page_id"]}.html'
+  else:
+    # First invocation produces a reviewable HTML + screenshots. Publication
+    # is withheld until a real host reviewer signs off on the rendered page.
+    dest=w/'draft-pages'/f'{pg["page_id"]}.html'
+  v5.write_text(dest,pagehtml)
   for pt in points:
     for fact in pt['required_facts']:
       if h(fact['text']) not in pagehtml or f'data-fact-id="{h(fact["id"])}"' not in pagehtml:
-        dest.unlink();raise v5.GateError('render lost required fact '+fact['id'])
-  try:qa=browser_check(dest,selectors=['[data-fact-id]','.card.check button','details.micro-details summary'])
-  except Exception:dest.unlink();raise
+        raise v5.GateError('render lost required fact '+fact['id'])
+  selectors=['[data-fact-id]','[data-teaching-module="transfer-checkpoint"]'] if board else [
+    '[data-fact-id]','.card.check button','details.micro-details summary']
+  qa=browser_check(dest,selectors=selectors,storyboard=board)
+  if board is not None:
+    qa["manifest_sha256"]=v5.sha(dest.read_bytes())
+    qa["screenshots"]={pg["page_id"]:qa.pop("page_screenshots")}
+    v5.atomic_json(w/'reports'/('unit-browser-'+pg["page_id"]+'.json'),qa)
+    reviewfile=sb.path_set(w,pg["page_id"])[2]
+    if not reviewfile.is_file():
+      raise v5.GateError('G5 RENDER_REVIEW_PENDING: inspect '+str(dest)+
+        ' and the actual desktop/mobile screenshots; save independent review to '+str(reviewfile))
+    problems=sb.validate_render_review(sb.read(reviewfile),w,plan,pg,
+                                        source,spec,board,dest,qa)
+    if problems:raise v5.GateError('G5 Unit render review rejected: '+str(problems[:12]))
+    final=w/'published'/f'{pg["page_id"]}.html'
+    final.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copy2(dest,final);dest=final
+  if (w/'overview.html').exists():shutil.copy2(w/'overview.html',w/'published'/'overview.html')
   receipt=record(w,'unit',dest,pg['title'],ids)
   fingerprint=v5.sha(dest.read_bytes())
   v5.atomic_json(w/'unit-delivery-pending.json',

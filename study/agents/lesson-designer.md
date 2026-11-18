@@ -9,6 +9,22 @@ design approval. Uses Codex/DSH's connected model; no provider key or API call.
 Approved plan.json/frozen-plan.json, source.json, target page and its exact
 required_fact IDs, learner prerequisite and progress evidence.
 
+## V6.5 storyboard composition requirement
+
+Read `references/storyboard-components.md` and its component contracts.
+After the independent `design-check` approval, write
+`storyboards/<page-id>.json` with a learning action, layout, source facts,
+2–7 purposeful scenes, module props and final transfer Checkpoint. Obtain a
+genuine separate storyboard review in `reviews/storyboard/<page-id>.json`;
+run `storyboard-check` BEFORE authoring the full content draft.
+
+Choose among causal flow, decision explorer, variable lab, math stepper,
+experiment comparator, trace debugger, worked example, transfer checkpoint.
+Select each for the knowledge relationship and learner operation it exposes.
+The Python composer handles safe reusable HTML/CSS/JS, not the lesson strategy.
+After G4 and real Chromium, request independent screenshot-based Render Review
+BEFORE allowing a V6.5 page to be published.
+
 ## Output and order
 1. Write lesson-specs/<page-id>.json using references/lesson-design.md.
    Decide lesson_kind, central question, misconception, four teaching moves,

@@ -1,8 +1,22 @@
-# Study V6.4 — Design-First Teaching Contract
+# Study V6.5 — Design-First Teaching Contract
 
 Study's objective is learner understanding and usable transfer. LP count,
 generated HTML count, word count and valid JSON shape are intermediate measures.
 This reference is mandatory for all NEW pages in ordinary `/study` and `/study-d`.
+
+## V6.5 storyboard composition and rendered-page review
+
+For NEW course plans, set `render_contract: storyboard-v1`. This adds a
+genuinely independent storyboard review after design-check and before the
+full lesson draft. The Designer chooses 2–7 scene modules from eight vetted
+teaching components and a layout shell (overview, exploration or evidence).
+The scenes declare actual learner actions, expected transitions/formulas,
+original LP/fact IDs and a final changed-condition checkpoint.
+
+After content review and actual Chromium testing, the reviewer must inspect
+the rendered HTML and 390/1280 screenshots before a page can be published.
+Run `storyboard-check` before drafting and `render-review-check` before G6.
+See `storyboard-components.md` for full data and review contracts.
 
 ## One public Skill, three internal roles
 
@@ -146,6 +160,6 @@ count is a teaching-quality proxy.
 
 V3.5 learner profile, study-state.json, prior answers, seven slash commands
 and branch/Unit cursors stay intact. Historical 99-page drafts remain
-recoverable for rebuilding, but a newly verified V6.4 page must satisfy
+recoverable for rebuilding, but a newly verified V6.5 page must satisfy
 the design-first contract. Windows uses ordinary Python and Chromium;
 no WSL2 or second model provider is required.

@@ -28,6 +28,25 @@ Write reviews/design/<page-id>.json:
   checks:[{dimension, passed, reason}] (exact six dimensions).
 Bind hashes to the current exact JSON and cite concrete facts in reasons.
 
+## V6.5 independent storyboard and actual Render Reviews
+
+The storyboard reviewer independently checks real source facts, planned
+learning action, module data, branch/formula/experiment correctness, scene
+order, and the changed-condition assessment. Save one substantive scene audit
+per scene to `reviews/storyboard/<page-id>.json`.
+
+After real HTML, desktop/mobile screenshots and per-module Chromium tests,
+a separate Render Reviewer must inspect what the learner actually sees and
+does. Record visual_fidelity, interaction_semantics, source_fidelity,
+cognitive_load, layout_integrity and transfer_alignment, with real distinct
+reviewer identity, exact HTML/source/storyboard hashes, and per-scene evidence.
+Run `render-review-check`. Reject linearized decision trees, decorative
+pseudo-visuals, invalid formula outputs, unsupported experimental numbers,
+misleading feedback, or unreadable responsive layouts.
+
+The deterministic validator establishes traceable evidence, while a genuine
+independent reviewer decides semantic and pedagogical correctness.
+
 ## Phase C — G4 lesson content
 After the design passes, review the actual authored draft and its source
 quotations. Verify causal claims, terminology, experiment values, conditions,
@@ -42,3 +61,7 @@ A syntactically valid review receipt establishes traceability only.
 Actual semantic acceptance depends on the isolated reviewer examining the
 source and making defensible judgments. Distinguish software PASS, reviewer
 PASS and real learner understanding. Fixture results must be labelled as such.
+
+Render-review JSON must include screenshot_sha256 for mobile and desktop from
+actual Chromium artifacts, in addition to the HTML and storyboard hashes.
+Changed screenshots invalidate the independent review even when HTML is unchanged.

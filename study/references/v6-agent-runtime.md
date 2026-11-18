@@ -1,4 +1,4 @@
-# Study V6.4 · Host-Native Runtime Contract
+# Study V6.5 · Host-Native Runtime Contract
 
 This is the execution playbook for a Study Skill installed in Codex, DSH,
 or another agent host. The host's **already connected session model** performs
@@ -113,6 +113,23 @@ py -3.12 study/runtime/v6_agent.py freeze --workspace "<deep workspace>"
 
 The approval command must only be invoked as the consequence of real user
 approval for the exact plan hash.
+
+## V6.5 composable teaching components and G5 Render Review
+
+New plans set `render_contract=storyboard-v1`. Once design-check passes,
+use `storyboard-check` for the independent Storyboard review before
+writing a draft. Content G4 receipt must match spec, storyboard and draft
+hashes. The component composer follows the Storyboard's approved scene
+order and one of three layout shells.
+
+Chromium saves desktop/mobile screenshots and validates actual component
+interactions, formulas and changed conditions. An isolated reviewer must
+inspect rendered HTML/screenshots and produce a hash-bound
+`reviews/render/<page-id>.json` before `render-review-check` and any G6
+publication. The first staged command may intentionally signal
+`G5 RENDER_REVIEW_PENDING`; after a real Render Review, rerun it.
+
+See `storyboard-components.md` for JSON contracts and safe module formulas.
 
 ## V6.4 mandatory Lesson Specification before any new page
 

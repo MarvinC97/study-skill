@@ -27,6 +27,7 @@ import xml.etree.ElementTree as ET
 import quality_contract as qc
 import lesson_contract as lessons
 import lesson_render as lesson_renderer
+import storyboard_contract as sb
 
 ROOT = Path(__file__).resolve().parent
 GATES = ("G1_SOURCE", "G2_PLAN", "G3_CONTENT", "G4_REVIEW", "G5_BROWSER", "G6_DELIVERY")
@@ -403,12 +404,18 @@ def build_pages(ws, only_missing=True):
         prev="index.html" if i==0 else pages[i-1]["page_id"]+".html"
         nxt="index.html" if i==len(pages)-1 else pages[i+1]["page_id"]+".html"
         specfile=Path(ws)/"lesson-specs"/(page["page_id"]+".json")
+        if plan.get("render_contract")=="storyboard-v1" and not specfile.is_file():
+            raise GateError("V6.5 requires approved lesson specification before rendering "+page["page_id"])
         if specfile.is_file():
             spec=read_json(specfile)
             errors=lessons.validate_spec(spec,page,points,source)
             errors+=lessons.validate_draft_alignment(spec,draft)
             if errors:raise GateError("invalid lesson design "+page["page_id"]+": "+str(errors[:12]))
-            h=lesson_renderer.render(page,points,draft,source,spec,prev,nxt)
+            if plan.get("render_contract")=="storyboard-v1":
+                board,_=sb.storyboard_ready(ws,plan,page,points,spec,source)
+                h=lesson_renderer.render(page,points,draft,source,spec,prev,nxt,storyboard=board)
+            else:
+                h=lesson_renderer.render(page,points,draft,source,spec,prev,nxt)
         else:
             # Legacy/demo output only. New host entrypoints require design files.
             h=html_page(page,points,draft,source,prev,nxt)
@@ -440,12 +447,28 @@ def content_static_check(ws):
             if qc.substantial(text,35) and esc(text) not in h:
                 issues.append(info["file"]+" authored explanatory text absent from HTML")
         specpath=Path(ws)/"lesson-specs"/(info["page_id"]+".json")
+        if plan.get("render_contract")=="storyboard-v1" and not specpath.is_file():
+            issues.append(info["file"]+" missing V6.5 lesson specification")
         if specpath.is_file():
             spec=read_json(specpath)
-            if 'data-lesson-contract="lesson-design-v1"' not in h:
-                issues.append(info["file"]+" missing reviewed lesson-design layout")
-            if 'data-visual-kind="'+esc(spec["visual"]["kind"])+'"' not in h:
-                issues.append(info["file"]+" teaching visual was not rendered")
+            if plan.get("render_contract")=="storyboard-v1":
+                if 'data-lesson-contract="lesson-storyboard-v1"' not in h:
+                    issues.append(info["file"]+" missing approved storyboard layout")
+                boardpath=Path(ws)/"storyboards"/(info["page_id"]+".json")
+                if not boardpath.is_file():
+                    issues.append(info["file"]+" missing storyboard")
+                else:
+                    board=read_json(boardpath)
+                    for scene in board.get("scenes",[]):
+                        if 'data-scene-id="'+esc(scene["id"])+'"' not in h:
+                            issues.append(info["file"]+" missing storyboard scene "+scene["id"])
+                        if 'data-teaching-module="'+esc(scene["module"])+'"' not in h:
+                            issues.append(info["file"]+" missing component "+scene["module"])
+            else:
+                if 'data-lesson-contract="lesson-design-v1"' not in h:
+                    issues.append(info["file"]+" missing reviewed lesson-design layout")
+                if 'data-visual-kind="'+esc(spec["visual"]["kind"])+'"' not in h:
+                    issues.append(info["file"]+" teaching visual was not rendered")
         for id in info["lp_ids"]:
             if f'data-teaching-lp="{esc(id)}"' not in h:
                 issues.append(info["file"]+" missing tutor-authored mechanism for "+id)
@@ -454,8 +477,11 @@ def content_static_check(ws):
                     issues.append(f"{info['file']} missing authored explanation for {fact['id']}")
                 if f'data-fact-id="{esc(fact["id"])}"' not in h: issues.append(f"{info['file']} missing source quote {fact['id']}")
                 if esc(fact["text"]) not in h:issues.append(f"{info['file']} lost source fact {fact['id']}")
-        if 'class="check"' not in h and 'class="card check"' not in h:issues.append(info["file"]+" missing checkpoint")
-        if 'class="reveal"' not in h and 'class="micro-details"' not in h:
+        if ('class="check"' not in h and 'class="card check"' not in h
+                and 'data-teaching-module="transfer-checkpoint"' not in h):
+            issues.append(info["file"]+" missing checkpoint")
+        if ('class="reveal"' not in h and 'class="micro-details"' not in h
+                and 'class="micro-details question"' not in h):
             issues.append(info["file"]+" missing accessible progressive questions")
         for link in re.findall(r'href="([^"]+)"',h):
             if link.endswith('.html') and not (pages_dir/link).exists():issues.append(info["file"]+" broken link "+link)
@@ -465,93 +491,210 @@ def content_static_check(ws):
     return report
 
 def browser_qa(ws, force=False):
-    """Incremental real-browser QA keyed by exact generated HTML bytes.
-    Every cache entry originates from a previous successful real Chromium run.
+    """Real Chromium checks, component interactions and exact-byte screenshot cache.
+
+    New V6.5 pages receive desktop/mobile screenshots for independent render
+    review. Legacy pages retain their existing historical QA checks.
     """
     w=Path(ws);manifest=read_json(w/"content-manifest.json")
+    plan=read_json(w/"frozen-plan.json")
+    is_v65=plan.get("render_contract")=="storyboard-v1"
     cachepath=w/"reports"/"browser-cache.json"
-    cache=read_json(cachepath) if cachepath.is_file() else {"version":"g5-browser-v3","pages":{}}
-    if cache.get("version")!="g5-browser-v3":cache={"version":"g5-browser-v3","pages":{}}
-    files={x["file"]:sha((w/"draft-pages"/x["file"]).read_bytes())
-           for x in manifest["pages"]}
-    pending=[item for item in manifest["pages"]
-             if force or not (
-                isinstance(cache["pages"].get(files[item["file"]]),dict) and
-                cache["pages"][files[item["file"]]].get("real_browser_pass") is True)]
+    cache=read_json(cachepath) if cachepath.is_file() else {"version":"g5-browser-v65","pages":{}}
+    if cache.get("version")!="g5-browser-v65":
+        cache={"version":"g5-browser-v65","pages":{}}
+    files={x["file"]:sha((w/"draft-pages"/x["file"]).read_bytes()) for x in manifest["pages"]}
+    screen_dir=w/"reports"/"screens"
+    screen_dir.mkdir(parents=True,exist_ok=True)
+    def cache_ok(entry):
+        row=cache.get("pages",{}).get(files[entry["file"]],{})
+        if row.get("real_browser_pass") is not True:return False
+        if is_v65:
+            screens=row.get("screenshots",{})
+            for size in ("desktop","mobile"):
+                rec=screens.get(size,{})
+                p=Path(rec.get("file",""))
+                if not p.is_file() or sha(p.read_bytes())!=rec.get("sha256"):
+                    return False
+        return True
+    pending=[item for item in manifest["pages"] if force or not cache_ok(item)]
     issues=[];tested=0
     if pending:
-        try:from playwright.sync_api import sync_playwright
+        try:
+            from playwright.sync_api import sync_playwright
         except ImportError:
             report={"passed":False,"browser_executed":False,
-                "issues":["Playwright unavailable; browser test unverified"],
-                "pages_cached":len(manifest["pages"])-len(pending),"pages_executed_now":0}
+                    "issues":["Playwright unavailable; actual browser QA is required"],
+                    "pages_cached":len(manifest["pages"])-len(pending),
+                    "pages_executed_now":0}
             atomic_json(w/"reports"/"browser.json",report);return report
         with sync_playwright() as p:
-            browser=p.chromium.launch(
-                headless=True,executable_path=os.environ.get("STUDY_CHROMIUM")
+            browser=p.chromium.launch(headless=True,
+                executable_path=os.environ.get("STUDY_CHROMIUM")
                 or shutil.which("chromium") or shutil.which("google-chrome") or None)
-            for info in pending:
-                name=info["file"];before=len(issues)
+            for item in pending:
+                name=item["file"];page_id=item["page_id"];before=len(issues)
+                source_html=(w/"draft-pages"/name).read_text(encoding="utf-8")
                 page=browser.new_page(viewport={"width":390,"height":840})
+                runtime_errors=[]
+                page.on("pageerror",lambda exc:runtime_errors.append(str(exc)))
+                screens={}
                 try:
-                    page.set_content((w/"draft-pages"/name).read_text(encoding="utf-8"))
-                    if page.locator(".card.check button").count()<3:
-                        issues.append(name+" missing checkpoint options")
+                    page.set_content(source_html)
+                    if is_v65:
+                        board=read_json(w/"storyboards"/(page_id+".json"))
+                        modules=board["scenes"]
+                        elements=page.locator("[data-teaching-module]")
+                        if elements.count()!=len(modules):
+                            issues.append(name+" component count diverges from approved storyboard")
+                        for scene in modules:
+                            loc=page.locator('[data-scene-id="'+scene["id"]+'"]')
+                            if loc.count()!=1 or loc.get_attribute("data-teaching-module")!=scene["module"]:
+                                issues.append(name+" scene missing or wrong type "+scene["id"])
+                                continue
+                            module=scene["module"]
+                            interactive=loc.locator(".interactive")
+                            if module=="variable-lab":
+                                ranges=interactive.locator('input[type="range"]')
+                                if ranges.count()!=len(scene["props"]["controls"]):
+                                    issues.append(name+" variable controls mismatch")
+                                elif ranges.count():
+                                    before_value=interactive.locator(".readout span").inner_text()
+                                    ranges.first.evaluate("(el)=>{el.value=el.value===el.max?el.min:el.max;el.dispatchEvent(new Event('input',{bubbles:true}))}")
+                                    after_value=interactive.locator(".readout span").inner_text()
+                                    if before_value==after_value:
+                                        issues.append(name+" variable change did not recompute output")
+                            elif module=="decision-explorer":
+                                choices=interactive.locator("button")
+                                if choices.count()<2:issues.append(name+" missing decision branches")
+                                else:
+                                    choices.first.click()
+                                    if interactive.locator(".path li").count()<1:
+                                        issues.append(name+" decision branch did not retain reasoning")
+                            elif module=="causal-flow":
+                                nodes=interactive.locator("button.flow-node")
+                                if nodes.count()<2:issues.append(name+" missing causal nodes")
+                                else:
+                                    nodes.last.click()
+                                    if interactive.locator(".flow-node.active").count()!=1:
+                                        issues.append(name+" causal node selection broken")
+                            elif module=="math-stepper":
+                                interactive.locator("button").first.click()
+                                if interactive.locator(".math-step").count()!=1:
+                                    issues.append(name+" math stepper did not reveal a derivation")
+                            elif module=="experiment-comparator":
+                                interactive.locator("button").first.click()
+                                if loc.locator("tr.active-row").count()!=1:
+                                    issues.append(name+" comparison did not highlight experiment condition")
+                            elif module=="trace-debugger":
+                                interactive.locator("button").first.click()
+                                if not interactive.locator(".info").inner_text().strip():
+                                    issues.append(name+" error trace lacks inspectable evidence")
+                            elif module=="worked-example":
+                                interactive.locator("button").first.click()
+                                if interactive.locator(".math-step").count()!=1:
+                                    issues.append(name+" worked example step reveal failed")
+                            elif module=="transfer-checkpoint":
+                                props=scene["props"];options=props["options"]
+                                good=next((j for j,v in enumerate(options) if v.get("correct") is True),None)
+                                if good is None or interactive.locator("button").count()!=len(options):
+                                    issues.append(name+" wrong transfer options")
+                                else:
+                                    interactive.locator("button").nth(good).click()
+                                    if not interactive.locator(".feedback").inner_text().startswith("正确"):
+                                        issues.append(name+" transfer Checkpoint feedback broken")
+                        # Progressive questions require real keyboard disclosure; outer
+                        # details container is intentionally collapsed in the interface.
+                        disclosure=page.locator("details.micro-details.question").first
+                        if disclosure.count():
+                            disclosure.evaluate("(el)=>{let p=el.parentElement.closest('details');if(p)p.open=true}")
+                            disclosure.locator("summary").focus()
+                            page.keyboard.press("Enter")
+                            if not disclosure.locator(".answer").is_visible():
+                                issues.append(name+" keyboard question disclosure broken")
+                            page.locator("button.reset").click()
+                            if disclosure.locator(".answer").is_visible():
+                                issues.append(name+" question disclosure reset broken")
+                        else:
+                            issues.append(name+" progressive question unavailable")
                     else:
-                        page.locator(".card.check button[data-correct=true]").click()
-                        if not page.locator(".feedback").inner_text().startswith("正确"):
-                            issues.append(name+" checkpoint feedback broken")
-                    if page.locator(".sim-controls button").count()>1:
-                        page.locator(".sim-controls button").last.click()
-                        expected=page.locator(".sim-controls button").last.get_attribute("data-observation")
-                        if expected not in page.locator(".sim-result").inner_text():
-                            issues.append(name+" simulation condition switch broken")
-                    if page.locator(".question details.micro-details summary").count():
-                        disclosure=page.locator(".question details.micro-details").first
-                        disclosure.locator("summary").focus();page.keyboard.press("Enter")
-                        if not disclosure.locator(".answer").is_visible():
-                            issues.append(name+" native reveal keyboard broken")
-                        page.locator("button.reset").click()
-                        if disclosure.locator(".answer").is_visible():
-                            issues.append(name+" native reveal reset failed")
-                    elif page.locator("button.reveal").count():
-                        page.locator("button.reveal").first.focus();page.keyboard.press("Enter")
-                        if not page.locator(".question .answer").first.is_visible():
-                            issues.append(name+" reveal keyboard broken")
-                        page.locator("button.reset").click()
-                        if page.locator(".question .answer").first.is_visible():
-                            issues.append(name+" reset failed")
-                    else:
-                        issues.append(name+" missing progressive question disclosure")
+                        if page.locator(".card.check button").count()<3:
+                            issues.append(name+" missing checkpoint options")
+                        else:
+                            page.locator(".card.check button[data-correct=true]").first.click()
+                            if not page.locator(".feedback").inner_text().startswith("正确"):
+                                issues.append(name+" checkpoint feedback broken")
+                        if page.locator(".sim-controls button").count()>1:
+                            page.locator(".sim-controls button").last.click()
+                            expected=page.locator(".sim-controls button").last.get_attribute("data-observation")
+                            if expected not in page.locator(".sim-result").inner_text():
+                                issues.append(name+" simulation condition switch broken")
+                        if page.locator(".question details.micro-details summary").count():
+                            disclosure=page.locator(".question details.micro-details").first
+                            disclosure.locator("summary").focus();page.keyboard.press("Enter")
+                            if not disclosure.locator(".answer").is_visible():
+                                issues.append(name+" native reveal keyboard broken")
+                            page.locator("button.reset").click()
+                            if disclosure.locator(".answer").is_visible():
+                                issues.append(name+" native reveal reset failed")
+                        elif page.locator("button.reveal").count():
+                            page.locator("button.reveal").first.focus();page.keyboard.press("Enter")
+                            if not page.locator(".question .answer").first.is_visible():
+                                issues.append(name+" reveal keyboard broken")
+                            page.locator("button.reset").click()
+                            if page.locator(".question .answer").first.is_visible():
+                                issues.append(name+" reset failed")
+                        else:
+                            issues.append(name+" missing progressive question disclosure")
                     if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
                         issues.append(name+" mobile overflow")
+                    if is_v65:
+                        mobile=screen_dir/(page_id+"-390.png")
+                        page.screenshot(path=str(mobile),full_page=True)
+                        screens["mobile"]={"file":str(mobile.resolve()),
+                                           "sha256":sha(mobile.read_bytes())}
                     page.set_viewport_size({"width":1280,"height":900})
                     if page.evaluate("document.documentElement.scrollWidth > innerWidth+3"):
                         issues.append(name+" desktop overflow")
-                finally:page.close()
+                    if is_v65:
+                        desktop=screen_dir/(page_id+"-1280.png")
+                        page.screenshot(path=str(desktop),full_page=True)
+                        screens["desktop"]={"file":str(desktop.resolve()),
+                                            "sha256":sha(desktop.read_bytes())}
+                    if runtime_errors:
+                        issues.append(name+" page script errors "+str(runtime_errors[:3]))
+                finally:
+                    page.close()
                 static=browser.new_page(java_script_enabled=False)
                 try:
-                    static.set_content((w/"draft-pages"/name).read_text(encoding="utf-8"))
+                    static.set_content(source_html)
                     if static.locator("[data-core]").count()<3 or not static.locator("[data-fact-id]").count():
                         issues.append(name+" JS-disabled core incomplete")
+                    if is_v65 and static.locator(".fallback").count()!=len(modules):
+                        issues.append(name+" JS-disabled component explanations missing")
                 finally:static.close()
                 tested+=1
                 if len(issues)==before:
-                    cache["pages"][files[name]]={
-                        "real_browser_pass":True,"sha256":files[name],
-                        "tested_by":"Playwright Chromium","tested_at":time.time(),
+                    cache["pages"][files[name]]={"real_browser_pass":True,
+                        "sha256":files[name],"tested_by":"Playwright Chromium",
+                        "tested_at":time.time(),"screenshots":screens,
                         "checks":["mobile","desktop","keyboard","checkpoint",
-                                  "reset","interaction","js-disabled"]}
+                                  "component-input-output","reset","js-disabled"]}
             browser.close()
         atomic_json(cachepath,cache)
-    report={"passed":not issues,"browser_executed":True,
-        "pages_tested":len(manifest["pages"]),"pages_executed_now":tested,
-        "pages_cached":len(manifest["pages"])-tested,
-        "issues":issues,"rendered_files":files,
-        "manifest_sha256":sha((w/"content-manifest.json").read_bytes()),
-        "viewports_tested":[390,1280],"keyboard_tested":True,
-        "js_disabled_tested":True,"interactive_tested":True,
-        "qa_contract":"g5-browser-v3"}
+    screenshots={}
+    if is_v65:
+        for item in manifest["pages"]:
+            if cache_ok(item):
+                screenshots[item["page_id"]]=cache["pages"][files[item["file"]]].get("screenshots",{})
+    report={"passed":not issues and (not is_v65 or len(screenshots)==len(manifest["pages"])),
+            "browser_executed":True,"pages_tested":len(manifest["pages"]),
+            "pages_executed_now":tested,"pages_cached":len(manifest["pages"])-tested,
+            "issues":issues,"rendered_files":files,"screenshots":screenshots,
+            "manifest_sha256":sha((w/"content-manifest.json").read_bytes()),
+            "viewports_tested":[390,1280],"keyboard_tested":True,
+            "js_disabled_tested":True,"interactive_tested":True,
+            "qa_contract":"g5-component-browser-v1" if is_v65 else "g5-browser-v3"}
     atomic_json(w/"reports"/"browser.json",report)
     return report
 

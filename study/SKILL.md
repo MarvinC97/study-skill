@@ -1,6 +1,6 @@
 ---
 name: study
-version: "6.4"
+version: "6.5"
 description: >
   Host-native, source-grounded adaptive tutoring for Codex, DSH, and other
   agents. Activate on /study, /study-n, /study-e, /study-d, /study-q, /study-c,
@@ -8,7 +8,7 @@ description: >
   coverage, quality checks, user-approved deep outlines and persistent progress.
 ---
 
-# Study V6.4 — Host-Native Agent Skill
+# Study V6.5 — Host-Native Agent Skill
 
 ## Execution architecture — authoritative
 
@@ -83,26 +83,28 @@ Every LP retains separate source anchors and understanding evidence.
    Preserve English technical terms, APIs, code and formulas with Chinese
    explanations on first occurrence. Label tutor inferences and extensions.
 
-## Design-first quality for all new lessons
+## Design-first, storyboard-driven quality (V6.5)
 
-Load `references/lesson-design.md`. Study Manager dispatches host-native
-`agents/curriculum-planner.md`, `agents/lesson-designer.md`, and
-`agents/independent-reviewer.md` (actual isolated tasks where available).
-After G2 approval, Designer writes `lesson-specs/<page-id>.json` FIRST:
-objective, causal/experimental visual, worked case, limits and transfer check.
-Independent Reviewer checks six design dimensions; save the source/plan/spec-
-bound receipt at `reviews/design/<page-id>.json`. Run `v6_agent.py design-check`
-BEFORE writing the teaching draft. Missing review blocks new page generation.
+Read `references/lesson-design.md` and `references/storyboard-components.md`.
+Use internal host roles: Curriculum Planner, Lesson Designer, Independent
+Reviewer. The seven public Study commands stay the only learner entrypoints.
 
-G4 checks actual content and approved design hashes. Type-aware rendering
-shows meaningful flows, experiment comparisons, equations and failure paths.
-G5 checks real HTML; G6 confirms actual delivery. Word count and JSON shape
-are screening signals, not teaching acceptance. Pilot a mechanism, experiment
-and failure case with real independent review and Chromium before batch work.
+For a NEW course add `render_contract=storyboard-v1` to `plan.json`.
+After G2 approval, review the `lesson-specs/<page-id>.json` design and run
+`design-check`; then author a 2–7 scene `storyboards/<page-id>.json`, obtain
+an isolated storyboard review, and run `storyboard-check` BEFORE content.
+Use eight safe, testable components with one of three responsive page shells.
+G4 binds actual lesson content to BOTH design and storyboard hashes.
 
-For Study-D also load `references/quality-gates-v6.2.md`: preserve complete
-LP/experiment/reflection coverage, independent G2 review and explicit user
-approval of the entire outline before generating lesson pages.
+G5 tests actual component interactions in Chromium and saves mobile/desktop
+screenshots. A separate host reviewer inspects the final HTML/screenshots
+and approves `reviews/render/<page-id>.json` via `render-review-check`
+BEFORE G6 publication/delivery. Missing review blocks new V6.5 pages.
+Use three representative source-grounded pilots before mass production.
+
+Historical V6.4 pages remain readable; keep source/LP evidence, old course
+state and nested deep cursor unchanged. Study-D still requires complete G2
+source inventory and the learner's explicit approval of the outline.
 
 ## Independent review and real Host gates
 
