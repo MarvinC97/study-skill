@@ -151,8 +151,12 @@ def _spine(spine):
     return ''.join(result)
 
 
-def render(page, points, draft, source, spec, previous="index.html", following="index.html"):
-    """Render an independently reviewed lesson. Never interpolate raw source HTML."""
+def render(page, points, draft, source, spec, previous="index.html", following="index.html",
+           storyboard=None):
+    """Render reviewed teaching content; V6.5 storyboards override old fixed layouts."""
+    if storyboard is not None:
+        import lesson_compose
+        return lesson_compose.render(page,points,draft,source,spec,storyboard,previous,following)
     pid=e(page["page_id"])
     rows=['<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">',
           '<meta name="viewport" content="width=device-width,initial-scale=1">',
