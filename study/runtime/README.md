@@ -57,12 +57,12 @@ writes `reviews/render/<page-id>.json`; run `render-review-check`.
 `stage-next-page` holds the page with `G5 RENDER_REVIEW_PENDING` until the
 matching review exists, then publishes the exact reviewed bytes. For batch
 production, `publish` also verifies each rendered-page review. Previously
-delivered V3.5/V6.4 course data remains in place.
+delivered V3.5/V6.5 course data remains in place.
 
 See `../references/storyboard-components.md` for the exact format and
 workflows. No extra LLM provider, WSL2 or user-facing slash command.
 
-## V6.4 pre-render quality gate
+## V6.5 pre-render quality gate
 
 The host first writes `lesson-specs/P001.json` and obtains a genuine isolated
 review at `reviews/design/P001.json`. Run `v6_agent.py design-check --workspace
