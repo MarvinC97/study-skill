@@ -1,20 +1,34 @@
-> **V6.4 Host-Native Study Skill** · Uses the model already connected to Codex/DSH. Retains learner profiles, onboarding, G1–G6 quality gates and recoverable learning evidence. No separate model API or provider credentials are required; browser QA depends on available host tools.
+> **V6.5 Host-Native Study Skill** · Uses the model already connected to Codex/DSH. Retains learner profiles, onboarding, G1–G6 quality gates and recoverable learning evidence. No separate model API or provider credentials are required; browser QA depends on available host tools.
 
 <p align="center"><img src="study/assets/icon.svg" alt="Hao Hao Xue Xi icon" width="84" /></p>
 <h1 align="center">好好学习 · Study</h1>
 <p align="center"><strong>Turn fast-changing AI knowledge into a personal, evidence-based learning path.</strong></p>
 <p align="center"><a href="README.md">简体中文</a> · <a href="README.en.md">English</a> · <a href="#quick-start">Quick Start</a></p>
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-V6.4-2563eb" />
+  <img alt="Version" src="https://img.shields.io/badge/version-V6.5-2563eb" />
   <img alt="Type" src="https://img.shields.io/badge/type-Agent%20Skill-7c3aed" />
   <img alt="Inputs" src="https://img.shields.io/badge/sources-Books%20%7C%20GitHub%20%7C%20Videos-f59e0b" />
 </p>
 
-## V6.4 design-first teaching
+## V6.5 storyboard-driven interactive teaching
+
+New plans use `render_contract: storyboard-v1`. The host Lesson Designer
+composes 2–7 purposeful scenes from eight tested teaching components and three
+responsive layout shells. The modules include causal flow, real decision
+branching, a numeric variable lab, math stepper, experiment comparison,
+first-error trace debugger, worked example and transfer checkpoint.
+
+Chromium verifies actual component behavior, captures desktop/mobile screenshots
+and binds the final HTML to a separate independent rendered-page review before
+G6 delivery. Existing V3.5 learner evidence, seven user commands and V6.5
+completed pages are preserved.
+[Component and storyboard contract](study/references/storyboard-components.md).
+
+## V6.5 design-first teaching
 
 One public Study Skill, three host-native internal roles (Curriculum Planner, Lesson Designer, Independent Reviewer), and one deterministic Runtime. Every newly authored lesson needs an independently reviewed Lesson Specification before full HTML generation. The renderer chooses process, experiment, mathematics or failure-timeline visualization based on the learning objective. V3.5 learner state, seven slash commands and existing host model remain. [Lesson Design contract](study/references/lesson-design.md).
 
-## V6.4 learning modes
+## V6.5 learning modes
 
 **`/study`** teaches one complete Unit by grouping normally 2–4 closely related atomic LPs (range 1–6) with a shared objective, causal relationship, worked example and checkpoint. **`/study-d`** explores one independently testable mechanism or experiment per page by default; exceptionally close LPs may share a page (2–3 typical, up to four) with a reviewed reason. Both modes preserve the same V3.5 learner profile, stable LP IDs, learning evidence and navigation. [Detailed two-mode contract](study/references/study-modes.md).
 
@@ -22,7 +36,7 @@ One public Study Skill, three host-native internal roles (Curriculum Planner, Le
 
 AI tools, frameworks and practices evolve quickly. A single book can be dense, a GitHub project can be unfamiliar, and a long video can hide important prerequisites. People bring different backgrounds to the same material.
 
-**好好学习 (Study V6.4)** is an Agent Skill built around a simple learning loop: **read the actual source → identify Learning Points (LPs) → organize prerequisite-aware Units → teach according to the learner's profile → assess real understanding → continue from recorded progress.**
+**好好学习 (Study V6.5)** is an Agent Skill built around a simple learning loop: **read the actual source → identify Learning Points (LPs) → organize prerequisite-aware Units → teach according to the learner's profile → assess real understanding → continue from recorded progress.**
 
 ## Supported sources
 
