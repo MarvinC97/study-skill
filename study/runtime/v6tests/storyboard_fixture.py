@@ -122,6 +122,9 @@ def write_render_review(ws,plan,source,page,spec,board,qa,htmlfile):
       "plan_sha256":sb.fingerprint(plan),"lesson_spec_sha256":sb.fingerprint(spec),
       "storyboard_sha256":sb.fingerprint(board),"html_sha256":sb.file_hash(htmlfile),
       "browser_manifest_sha256":qa["manifest_sha256"],
+      "screenshot_sha256":{
+         view:qa["screenshots"][page["page_id"]][view]["sha256"]
+         for view in ("desktop","mobile")},
       "approved":True,"issues":[],"checks":[
         {"dimension":dimension,"passed":True,"reason":REASON}
         for dimension in sorted(sb.RENDER_DIMENSIONS)],
