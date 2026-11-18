@@ -104,7 +104,7 @@ PPO Clipping 计算。Chromium 验证实际操作，保存移动端/桌面截图
 独立 Reviewer 审查最终渲染结果后才能交付新版课程。完整规则见
 [`storyboard-components.md`](study/references/storyboard-components.md)。
 
-保留既有 V3.5 学习档案、七个命令及 V6.5 历史页面。新规划的课程
+保留既有 V3.5 学习档案、七个命令及 V6.4 历史页面。新规划的课程
 采用 `render_contract: storyboard-v1`，由宿主内的 Planner、Designer、
 Reviewer 调度。
 
