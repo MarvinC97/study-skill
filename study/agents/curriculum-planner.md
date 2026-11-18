@@ -18,6 +18,14 @@ recorded prerequisite evidence, selected mode (study / study-d).
   LPs may share a page with reviewed grouping reasons; inventory all source
   experiments and thought questions before page planning.
 
+## V6.5 new-course rendering contract
+
+New Study and Study-D plans declare `render_contract: storyboard-v1`.
+This chooses a reviewed, interactive component composer while preserving
+the same LP ID, learner state and G2 coverage requirements. Existing V6.4
+historical plans remain readable as-is. The Planner never forces a page
+count or chooses components to fill space.
+
 ## Review and completion
 Call v6_agent.py plan-check to check deterministic coverage. Send source spans,
 LP mapping and grouping logic to an actually isolated host reviewer. Preserve
