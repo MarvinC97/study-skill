@@ -86,6 +86,13 @@ class RealStoryboardBrowser(unittest.TestCase):
   self.assertTrue((self.w/"published"/(self.page["page_id"]+".html")).exists())
   render_review=agent.render_review_check(self.w,self.page["page_id"])
   self.assertTrue(render_review["render_reviewed"])
+  # Screenshot mutation invalidates the previously accepted reviewer evidence.
+  mobile=Path(qa["screenshots"][self.page["page_id"]]["mobile"]["file"])
+  original_mobile=mobile.read_bytes()
+  mobile.write_bytes(original_mobile+b"tampered")
+  with self.assertRaises(host.GateError):
+   agent.render_review_check(self.w,self.page["page_id"])
+  mobile.write_bytes(original_mobile)
   # A modified HTML invalidates the previously accepted render review.
   html.write_bytes(html.read_bytes()+b"<!-- altered after review -->")
   with self.assertRaises(host.GateError):
