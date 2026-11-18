@@ -404,6 +404,8 @@ def build_pages(ws, only_missing=True):
         prev="index.html" if i==0 else pages[i-1]["page_id"]+".html"
         nxt="index.html" if i==len(pages)-1 else pages[i+1]["page_id"]+".html"
         specfile=Path(ws)/"lesson-specs"/(page["page_id"]+".json")
+        if plan.get("render_contract")=="storyboard-v1" and not specfile.is_file():
+            raise GateError("V6.5 requires approved lesson specification before rendering "+page["page_id"])
         if specfile.is_file():
             spec=read_json(specfile)
             errors=lessons.validate_spec(spec,page,points,source)
@@ -445,6 +447,8 @@ def content_static_check(ws):
             if qc.substantial(text,35) and esc(text) not in h:
                 issues.append(info["file"]+" authored explanatory text absent from HTML")
         specpath=Path(ws)/"lesson-specs"/(info["page_id"]+".json")
+        if plan.get("render_contract")=="storyboard-v1" and not specpath.is_file():
+            issues.append(info["file"]+" missing V6.5 lesson specification")
         if specpath.is_file():
             spec=read_json(specpath)
             if plan.get("render_contract")=="storyboard-v1":
