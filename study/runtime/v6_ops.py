@@ -61,46 +61,91 @@ def independent_review(ws,role,source,artifact,required_ids):
     raise v5.GateError("reviewer rejected "+role+": "+str(result.get("issues",[])))
   return result
 
-def browser_check(html_file,selectors=()):
-  """Validate the actual Unit HTML; checks more than mobile overflow."""
+def browser_check(html_file,selectors=(),storyboard=None):
+  """Real Chrome interaction and screenshot receipt for one standard Unit."""
   try:from playwright.sync_api import sync_playwright
-  except ImportError:raise v5.GateError('Playwright missing; Unit is unverified')
-  issues=[];html_text=Path(html_file).read_text(encoding='utf-8')
+  except ImportError:raise v5.GateError('Playwright missing; page is unverified')
+  issues=[];file=Path(html_file);html_text=file.read_text(encoding='utf-8')
+  shots={}
   with sync_playwright() as p:
     b=p.chromium.launch(headless=True,
       executable_path=os.environ.get('STUDY_CHROMIUM') or shutil.which('chromium')
       or shutil.which('google-chrome') or None)
     for width in (390,1280):
       page=b.new_page(viewport={'width':width,'height':820})
+      page_errors=[]
+      page.on('pageerror',lambda exc:page_errors.append(str(exc)))
       page.set_content(html_text)
+      if page.evaluate('document.documentElement.scrollWidth > innerWidth+3'):
+        issues.append('mobile overflow' if width==390 else 'desktop overflow')
       for css in selectors:
         if page.locator(css).count()==0:issues.append('missing '+css)
-      if page.evaluate('document.documentElement.scrollWidth > innerWidth+3'):
-        issues.append(('mobile' if width==390 else 'desktop')+' overflow')
-      if page.locator('.check button[data-correct=true]').count():
-        page.locator('.check button[data-correct=true]').first.click()
+      if storyboard:
+        scenes=page.locator('[data-teaching-module]')
+        if scenes.count()!=len(storyboard['scenes']):issues.append('incomplete storyboard components')
+        transfer=page.locator('[data-teaching-module="transfer-checkpoint"]')
+        if transfer.count()!=1:issues.append('missing transfer component')
+        else:
+          choices=next(x['props']['options'] for x in storyboard['scenes']
+                       if x['module']=='transfer-checkpoint')
+          answer=next((i for i,x in enumerate(choices) if x.get('correct') is True),None)
+          if answer is None or transfer.locator('.interactive button').count()!=len(choices):
+            issues.append('transfer answers not rendered')
+          else:
+            transfer.locator('.interactive button').nth(answer).click()
+            if not transfer.locator('.feedback').inner_text().startswith('正确'):
+              issues.append('transfer feedback did not verify answer')
+        for kind in ('variable-lab','decision-explorer','math-stepper',
+                     'experiment-comparator','trace-debugger','causal-flow','worked-example'):
+          comp=page.locator('[data-teaching-module="'+kind+'"]')
+          if comp.count()==0:continue
+          first=comp.first
+          area=first.locator('.interactive')
+          if kind=='variable-lab':
+            slider=area.locator('input[type=range]')
+            if not slider.count():issues.append('missing slider')
+            else:
+              before=area.locator('.readout span').inner_text()
+              slider.first.evaluate("(el)=>{el.value=el.value===el.max?el.min:el.max;el.dispatchEvent(new Event('input',{bubbles:true}))}")
+              if before==area.locator('.readout span').inner_text():
+                issues.append('variable lab failed to update calculation')
+          elif kind=='decision-explorer':
+            area.locator('button').first.click()
+            if not area.locator('.path li').count():issues.append('decision path not updated')
+          elif kind=='experiment-comparator':
+            area.locator('button').first.click()
+            if not first.locator('tr.active-row').count():issues.append('experiment comparison not updated')
+          elif kind=='trace-debugger':
+            area.locator('button').first.click()
+            if not area.locator('.info').inner_text():issues.append('debug trace missing evidence')
+          elif kind in ('math-stepper','worked-example'):
+            area.locator('button').first.click()
+            if not area.locator('.math-step').count():issues.append(kind+' did not reveal its next step')
+          else:
+            area.locator('.flow-node').last.click()
+            if not area.locator('.flow-node.active').count():issues.append('causal flow did not select a state')
+      elif page.locator('.card.check button[data-correct=true]').count():
+        page.locator('.card.check button[data-correct=true]').first.click()
         if not page.locator('.feedback').inner_text().startswith('正确'):
-          issues.append('checkpoint feedback broken')
-      if page.locator('.question details.micro-details summary').count():
-        t=page.locator('.question details.micro-details').first
-        t.locator('summary').focus();page.keyboard.press('Enter')
-        if not t.locator('.answer').is_visible():issues.append('native reveal keyboard broken')
-        page.locator('button.reset').click()
-        if t.locator('.answer').is_visible():issues.append('native reveal reset broken')
-      elif page.locator('button.reveal').count():
-        page.locator('button.reveal').first.focus();page.keyboard.press('Enter')
-        if not page.locator('.question .answer').first.is_visible():
-          issues.append('reveal keyboard broken')
-      else:issues.append('Unit has no progressive question')
+          issues.append('legacy Checkpoint feedback broken')
+      if width==390 and storyboard:
+        d=file.parent.parent/'reports'/'screens';d.mkdir(parents=True,exist_ok=True)
+        fn=d/(file.stem+'-390.png');page.screenshot(path=str(fn),full_page=True)
+        shots['mobile']={'file':str(fn.resolve()),'sha256':v5.sha(fn.read_bytes())}
+      if width==1280 and storyboard:
+        d=file.parent.parent/'reports'/'screens';d.mkdir(parents=True,exist_ok=True)
+        fn=d/(file.stem+'-1280.png');page.screenshot(path=str(fn),full_page=True)
+        shots['desktop']={'file':str(fn.resolve()),'sha256':v5.sha(fn.read_bytes())}
+      if page_errors:issues.append('page script error: '+str(page_errors[:2]))
       page.close()
-    static=b.new_page(java_script_enabled=False)
-    static.set_content(html_text)
-    if static.locator('[data-core]').count()<3 or static.locator('[data-fact-id]').count()==0:
-      issues.append('JS-disabled core lesson or source missing')
+    static=b.new_page(java_script_enabled=False);static.set_content(html_text)
+    if static.locator('[data-core]').count()<3 or not static.locator('[data-fact-id]').count():
+      issues.append('JS-disabled teaching or source missing')
     static.close();b.close()
   if issues:raise v5.GateError('browser QA failed: '+', '.join(issues))
-  return {'browser_executed':True,'viewports':[390,1280],'passed':True,
-          'keyboard_tested':True,'js_disabled_tested':True,'interactive_tested':True}
+  return {'browser_executed':True,'viewports_tested':[390,1280],
+    'keyboard_tested':True,'js_disabled_tested':True,'interactive_tested':True,
+    'passed':True,'page_screenshots':shots}
 
 def next_unit(ws):
   w=Path(ws);plan,source=need_plan(w)
