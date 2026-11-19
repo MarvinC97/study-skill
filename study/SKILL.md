@@ -4,27 +4,33 @@ version: "6.6"
 description: >
   Source-grounded learning HTML for Codex and DSH. Use /study, /study-n,
   /study-e, /study-d, /study-q, /study-c, and /study-m. Keep complete source
-  coverage and persistent learner evidence. Author clear HTML directly,
-  then review its actual teaching quality.
+  coverage and persistent learner evidence. Teach in a source-grounded
+  manuscript, visually implement as HTML, then review the finished page.
 ---
 
-# Study V6.6 · Read → Explain → HTML → Review → Learn
+# Study V6.6 · Source → Teaching Manuscript → Visual HTML → Review
 
 ## One purpose, one model
 
 Turn source material into **easy-to-understand HTML**, including a faithful
 explanation, appropriate diagrams, examples and necessary practice. The
-current Codex/DSH agent is the author and Study Manager, using its existing
-model and built-in tools. Never ask for a separate Study API key, model
+current Codex/DSH agent is the Study Manager, using its existing model and
+built-in tools for separate Teaching Author and Visual Builder passes. Never ask for a separate Study API key, model
 endpoint, provider config or background service. Python is a deterministic
 file/state/browser helper, not the author of educational explanations.
 
-For current courses load `references/direct-html.md` and use the
-`render_contract: "direct-html-v1"` plan field. Write complete, readable
-`authored-pages/<page-id>.html` directly. Then review the *actual* page and
-run the browser checks before delivery. Do not require Lesson Specification,
-Storyboard JSON, component selection, or fixed paragraphs/interaction counts
-for new pages. Historical V6.5 plans stay readable using legacy tools.
+For new courses use `render_contract: "direct-html-v1"` and
+`authoring_mode: "two-pass"`. **Pass 1:** Teaching Author reads the original
+source and writes/finalizes `lesson-drafts/<page-id>.md` as a complete,
+coherent explanation. **Pass 2:** a separate Visual Builder reads that
+manuscript and, where accessible, a learner-approved visual benchmark, then
+creates complete, readable HTML at `authored-pages/<page-id>.html`
+with genuinely useful diagrams and interactions. Use the existing connected model, preferably distinct
+author/builder contexts. Run ONE independent final review of source,
+manuscript and actual HTML, then browser QA. No Spec, Storyboard, component
+quota or extra approval stage. Earlier direct HTML and legacy plans remain
+compatible; for ongoing courses use the two-pass method without changing an
+already approved plan hash. See `references/direct-html.md`.
 
 ## Seven commands and route behavior
 
@@ -75,12 +81,15 @@ See `references/study-modes.md` and `references/deep-module.md`.
   explains Chinese meaning and expands acronyms when useful. Source claims,
   instructor examples and assumptions remain distinguishable.
 
-## Author one genuinely understandable page
+## Two authoring passes: complete teaching, then visual implementation
 
 Read `references/direct-html.md`, `references/lesson-teaching.md`,
 `references/writing-clarity.md` and `references/visual-output.md`.
-The HTML's subject is clear in its first screen. Explain prerequisites
-before using them. A mechanism should show
+Pass 1 completes the teaching *before* any CSS/JS implementation: explain
+prerequisites, definitions, mechanism, worked example, conditions and limits
+in the manuscript. Pass 2 translates that whole explanation into purposeful
+visual HTML, retaining important facts and explanations. The HTML's subject
+is clear in its first screen. A mechanism should show
 **input → meaningful intermediate change → result → why** with a concrete
 worked example, relevant conditions and a limit or altered case. Experimental
 lessons preserve the actual controls and reported evidence.
@@ -94,15 +103,17 @@ the key step is incomplete.
 
 ## One real final review, then software QA
 
-An isolated host Reviewer reads original evidence and the **full authored
-HTML**. The reviewer reconstructs the explanation from the visible page,
+An isolated host Reviewer reads original evidence, the saved teaching
+manuscript when present, and the **full authored HTML**. The reviewer reconstructs the explanation from the visible page,
 verifies source fidelity and intermediate reasoning, checks reading sequence,
 validates visual meaning and self-check fairness. Use an actual, learner-approved
 high-quality sample as a presentation benchmark when one is accessible; it
 never supplies facts for a different source. Cite exact reader-visible HTML
 evidence for explanation, sequence and visual judgments. Record one source/plan/HTML-
 hash-bound receipt `reviews/html/<page-id>.json` covering five dimensions
-from `references/direct-html.md`. A missing genuine reviewer is
+from `references/direct-html.md`. For `two-pass` plans, the receipt
+also binds `lesson_sha256`; the runtime rejects missing or changed
+manuscripts. A missing genuine reviewer is
 `REVIEW_UNVERIFIED`. Never manufacture an approval.
 
 When available use `runtime/v6_agent.py direct-page-check`, and the direct

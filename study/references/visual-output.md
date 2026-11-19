@@ -1,6 +1,6 @@
 # Visual Output
 
-> **Study 6.6 visual authoring:** Author the actual HTML visual alongside the explanation, using the same objects and labels. A causal diagram should expose meaningful intermediate changes; an experiment should compare true source-reported conditions and results; an interactive calculator must recompute and explain the observed value. A simple concept can use a clear paragraph. Keep figures near their causal explanation, and show key teaching directly. Reviewer checks the finished visible page rather than confirming a component type.
+> **Study 6.6 B-mode visual authoring:** Read the completed teaching manuscript before implementing HTML. Convert its meaningful causal and quantitative relations into visuals using the same objects and labels; retain the complete explanation. A causal diagram should expose meaningful intermediate changes; an experiment should compare true source-reported conditions and results; an interactive calculator must recompute and explain the observed value. A simple concept can use a clear paragraph. Keep figures near their causal explanation, and show key teaching directly. Reviewer checks the finished visible page rather than confirming a component type.
 
 
 Read this for Study overview pages, every standard learning Unit, and Study-E pages. Use visual explanations when they make a relationship clearer; a coherent explanation remains essential.
@@ -20,8 +20,10 @@ teaching design review.
 
 ## V6.6 direct HTML: content-led visual authoring (takes precedence)
 
-For plans with `render_contract: direct-html-v1`, the author owns the actual
-HTML, visual language, and reading order. The V6.4 renderer and older
+For plans with `render_contract: direct-html-v1`, the Teaching Author owns
+the complete lesson manuscript; the Visual Builder owns its HTML visual
+implementation and reading order. The builder reads the saved manuscript
+before coding CSS, SVG or JS. The V6.4 renderer and older
 card-template guidance elsewhere in this file apply **only to legacy plans**.
 An accepted template or sample is an *optional visual quality reference*,
 not a page-layout requirement. Inspect an accessible learner-approved sample
@@ -55,7 +57,8 @@ body; distinguish learner-authored hypothetical data from original reports.
 
 ## Preferred format
 
-When the host can create or display HTML, create a self-contained HTML page. For **legacy V3–V6.5** plans, `../assets/overview-template.html` and `../assets/unit-template.html` remain available as optional starting assets. For `direct-html-v1`, author the page's explanation and layout directly.
+When the host can create or display HTML, create a self-contained HTML page. For **legacy V3–V6.5** plans, `../assets/overview-template.html` and `../assets/unit-template.html` remain available as optional starting assets. For `direct-html-v1`, first complete the separate teaching manuscript,
+then implement the page's explanation and visual layout.
 
 When HTML is unavailable, reproduce the same information hierarchy in compact Markdown using diagrams, arrows, boxes, and short blocks.
 

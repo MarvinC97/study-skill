@@ -30,6 +30,8 @@ assert 'source-core' in (ROOT/'references'/'storm-questioning.md').read_text()
 assert '/study-c' in (ROOT/'references'/'consolidation.md').read_text()
 assert 'overview' in (ROOT/'references'/'source-planning.md').read_text().lower()
 assert 'direct-html-v1' in main
+assert 'authoring_mode: "two-pass"' in main, 'New courses must use the two-pass authoring contract'
+assert 'lesson-drafts/<page-id>.md' in main, 'Skill must identify the teaching manuscript artifact'
 assert 'reviews/html/<page-id>.json' in main
 assert 'complete HTML' in main or 'complete, readable' in main
 assert (ROOT/'references'/'direct-html.md').is_file()

@@ -2,7 +2,7 @@
 
 ## Unit
 
-Use the already approved Unit+LP map. Teach **one Unit per `/study-n`**. Use a concise 7-stage logic (flexible layout): WHY → INTUITION → MECHANISM → EXAMPLE → CONNECTION → REMEMBER → CHECKPOINT. Explain real English terminology with Chinese on first use. Add one visual that best matches the knowledge relationship, with clear arrow semantics. Use a hidden mini-question where it helps learner predict a mechanism; grade only from submitted responses.
+Use the already approved Unit+LP map. Teach **one Unit per `/study-n`**. For new courses follow B-mode: Teaching Author first writes the full learning explanation as a source-grounded Markdown manuscript; the Visual Builder implements it in standalone HTML in a separate pass. WHY → INTUITION → MECHANISM → EXAMPLE → CONNECTION → REMEMBER → CHECKPOINT is a flexible reasoning guide, never a compulsory sequence of HTML cards. Explain real English terminology with Chinese on first use. Add one visual that best matches the knowledge relationship, with clear arrow semantics. Use a hidden mini-question where it helps learner predict a mechanism; grade only from submitted responses.
 
 Select and adapt accepted STORM question IDs from the planning inventory; do not rerun a full multi-perspective research task on each Unit. Source-derived statements must preserve conditions and anchors. A false inference should be distinguished from source claims.
 

@@ -1,6 +1,6 @@
 # Study V6.6 · Host-Native Runtime Contract
 
-> **V6.6 CURRENT runtime:** For new `render_contract: direct-html-v1` plans, the host writes `authored-pages/<page-id>.html` directly, independent Reviewer checks the actual full HTML and source (receipt `reviews/html/<page-id>.json`), then `v6_agent.py direct-page-check` performs browser QA. `study-n` publishes one reviewed standard Unit; `stage-next-page` stages the next approved deep page. Confirm delivery only after the learner can access the exact HTML. Lesson Specification/Storyboard/old G3-G4 JSON are historical compatibility paths. See `direct-html.md`.
+> **V6.6 CURRENT runtime:** For new `render_contract: direct-html-v1` plans set `authoring_mode: two-pass`. Teaching Author writes and saves complete `lesson-drafts/<page-id>.md` from the actual source and approved LPs; Visual Builder uses that manuscript (and optional approved presentation sample) to implement `authored-pages/<page-id>.html`. ONE independent Reviewer checks source, manuscript and actual HTML; `reviews/html/<page-id>.json` binds `lesson_sha256` and the final HTML hash. Then `v6_agent.py direct-page-check` performs browser QA. `study-n` publishes one reviewed standard Unit; `stage-next-page` stages the next approved deep page. Confirm delivery only after the learner can access the exact HTML. Lesson Specification/Storyboard/old G3-G4 JSON are historical compatibility paths. See `direct-html.md`.
 
 
 This is the execution playbook for a Study Skill installed in Codex, DSH,
@@ -30,7 +30,7 @@ part of the Study architecture.
 A generated file, a passed structural validator, an approved independent
 review and a confirmed user-visible delivery are different states.
 
-## Two-mode G2/G3 contracts
+## Historical G2/G3 structured-draft contracts (V6.2–V6.5 only)
 
 Read `study-modes.md` before planning. Standard `/study` groups typically
 2–4 related LPs (range 1–6) into a complete Unit. Grouped Unit plan pages
@@ -134,7 +134,7 @@ publication. The first staged command may intentionally signal
 
 See `storyboard-components.md` for JSON contracts and safe module formulas.
 
-## V6.4 mandatory Lesson Specification before any new page
+## Historical V6.4 Lesson Specification (legacy plans only)
 
 Read `lesson-design.md`. The host's Lesson Designer writes `lesson-specs/<page-id>.json`
 before writing a lesson draft. The isolated reviewer receives actual source

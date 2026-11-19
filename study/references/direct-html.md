@@ -5,11 +5,15 @@
 Transform the complete selected source into HTML that a new learner can
 understand without inventing the missing reasoning. The approved learning
 point (LP) map controls source coverage; the final authored HTML is the only
-official lesson text. Codex/DSH's connected model writes the explanations,
-visuals, examples and actual HTML together. Python handles deterministic
-provenance, UI/browser checks and delivery state.
+official lesson text. Codex/DSH's connected model first completes a source-grounded teaching
+manuscript; a separate visual implementation pass transforms that manuscript
+into an inspectable HTML lesson. Python handles deterministic provenance,
+UI/browser checks and delivery state.
 
-New courses set `render_contract: "direct-html-v1"` in `plan.json`.
+New courses set `render_contract: "direct-html-v1"` and
+`authoring_mode: "two-pass"` in `plan.json`. For already approved or
+in-progress direct HTML plans, perform the same two authoring passes without
+rewriting the approved plan hash; they retain their original runtime contract.
 Older V3.5–V6.5 plans retain their historical reading and resumption paths.
 No Lesson Specification, Storyboard, component registry, min-length content
 quota, forced diagram, or mandatory scene count is required in the default
@@ -52,7 +56,8 @@ original source. Never invent a benchmark, reuse another course's facts, or
 force its layout onto a different topic. If no sample is available, use the
 reader-comprehension criteria below without claiming sample equivalence.
 
-The author solves **two independent obligations in the same HTML**:
+The Teaching Author and Visual Builder must satisfy **two independent
+obligations in the final HTML**:
 1. SOURCE FIDELITY: each scoped important LP, source condition and claim
    is supported and retains the author's intended meaning and limits.
 2. READER COMPREHENSION: a learner with stated prerequisites can follow
@@ -61,65 +66,75 @@ The author solves **two independent obligations in the same HTML**:
 A visually polished page that drifts from the source fails (1).
 An accurate list of conclusions that omits the reasoning fails (2).
 
-## Evidence-to-explanation handoff (in the author's reasoning, not another artifact)
+## Default B workflow: two production passes, one final review
 
-Before writing a mechanism, identify its source evidence, starting conditions,
-intermediate operation or training signal, resulting change, and why that
-change follows. Explain these in a coherent narrative. Use one concrete
-example through the full mechanism when it improves understanding. Only then
-choose a figure, table, math walkthrough or interaction to make the
-relationship inspectable. This handoff is an **authoring practice**; do not
-create mandatory Spec, Storyboard, modules, page quotas or extra approval files.
+**Pass 1 · Teaching Author (content, no HTML).** Read all relevant original
+passages and their context with the approved LP/page scope. Write
+`lesson-drafts/<page-id>.md` as a complete Chinese teaching manuscript:
+definitions before use, meaningful examples, intermediate causal/mathematical
+steps, exact source conditions and limits, and original-versus-illustrative
+distinctions. For experiments preserve real setup, controls, numeric evidence
+where reported, and interpretation boundaries. The manuscript is an
+**actual complete lesson** written to teach; it is not a schema, card catalog,
+bullet outline, page storyboard, or set of slide captions. Provide source
+anchors for important claims. The initial manuscript does not contain HTML/CSS/JS.
+Finish and save its bytes before starting the visual pass.
 
-For a **roadmap/overview**, make the shared mechanism and meaningful
-differences visible, while clearly pointing to the later detailed pages.
-A comparison table can give the map; it cannot alone serve as the complete
-explanation when the page's goal includes *how* the mechanism works.
-For an **algorithm, training step or formula**, show an actual
-input → operation/signal → intermediate effect → result and its boundary.
-For an **experiment**, retain its real conditions, comparison, observed
-numbers (if reported), interpretation and inference limit.
-For a **failure case**, locate the earliest wrong decision, show downstream
-effects and explain how the correction changes the outcome.
+**Pass 2 · Visual Builder (page design and implementation).** Start from the
+saved manuscript and, when available, an accessible learner-approved visual
+benchmark. Use a distinct host-agent context when supported; the same host
+model and plan suffice. Read the manuscript in full. Convert its significant
+conceptual relationships into suitable HTML visualizations, and show actual
+intermediate operations rather than decorative cards. Examples include
+labelled token alignment, a calculation with adjustable probability,
+an experiment with comparable conditions, a labelled branching choice,
+or a genuinely useful diagram. Select each based on the *current* subject.
+Keep every essential explanation and original-source boundary in the HTML
+without hiding it behind a disclosure. The manuscript remains the content
+reference, not a separate rendering schema. Save the complete standalone
+page at `authored-pages/<page-id>.html`. Use responsive semantic HTML,
+safe local CSS/JS and a static readable core. No mandatory interactions
+or fixed word, section, scene, component or diagram counts.
 
-The reader-visible mechanism must appear where it is needed, with
-explanatory graphics beside the relevant passage. Core knowledge remains
-readable without toggling a disclosure. A screenshot containing attractive
-cards, a list of categories, or a correct answer does not establish
-understanding.
+**One independent final review** compares original source + approved route +
+saved teaching manuscript + *reader-visible* final HTML. Check both
+(1) source fidelity and (2) teaching completeness/visual explanation.
+Check that the manuscript's substantial learning content reached the final
+page with correct meaning. Reviewers should point to a specific missing
+intermediate step, example, visual relationship or factual condition.
+Make targeted changes, update the manuscript if meaning changes, and
+re-review exact final bytes. Run actual Chromium QA after content approval.
+Deliver only the verified HTML; do not attach the manuscript unless the
+learner requests it.
 
-## Authoring sequence: one source → one complete lesson
+**Manuscript provenance for new plans.** The existing final review receipt
+also includes `lesson_sha256` (SHA-256 of the exact saved UTF-8 manuscript
+bytes) when `authoring_mode: "two-pass"`. The runtime verifies its
+existence and that the hash still matches when publishing. This is a
+single integrity check inside the existing final review, **not** another
+approval stage. For older direct-HTML plans, the manuscript is useful
+but its hash is optional for backward-compatible recovery.
 
-1. Read the actual page source and necessary surrounding paragraphs, source
-   diagrams, formulas and experimental settings. Consult the approved plan,
-   relevant prerequisites and learner background.
-2. State what this page teaches and explain the necessary concepts **before**
-   requiring problem diagnosis. Explain an acronym at first appearance with
-   English expansion and Chinese meaning when relevant.
-3. Show the actual mechanism **input → intermediate change → result → why**.
-   A concrete worked case must exercise the same mechanism. Explain at least
-   one meaningful changed condition or limitation when needed.
-4. For experiments, preserve source question, setup, controlled variables,
-   observations, numerical values where actually reported and interpretation
-   boundaries. Label any illustrative invented example distinctly.
-5. Let the teaching determine HTML order and visuals. Use a diagram for a
-   causal relation, table for grounded comparison, calculation for numerical
-   reasoning, and interactive controls only when their changes teach a
-   real fact. A clear paragraph is a valid choice.
-6. Place core explanations and diagrams visibly in reading order. Keep
-   answers, optional supplementary detail and provenance in disclosures.
-   A reader must understand the page without opening hidden material.
-7. Finish the explanation before placing a short self-check. The answer must
-   be inferable from what has already been taught; accept brief correct
-   answers in the conversation. Do not force a self-check where unnecessary.
-8. Write the full self-contained HTML at
-   `authored-pages/<page-id>.html`. Use semantic HTML and a responsive
-   viewport; local CSS/JS are allowed. Never ship untrusted third-party
-   scripts or execute arbitrary source HTML.
+## Teaching goals by page kind
+
+For a roadmap/overview, show the common mental model and meaningful
+differences, linking detailed derivations to their approved later pages.
+For an algorithm, training step or formula, show actual input → operation /
+learning signal → intermediate effect → result and assumptions.
+For experiments, retain source-reported conditions, comparisons, outcomes
+and inference limits. For failure cases, identify the first wrong decision
+and its downstream consequences. Terms appear before they are required.
+
+A comparison chart can provide a map, but a page about how a mechanism
+works must also reveal the transformation. The reader should be able to
+reconstruct it from the visible page. Questions follow the explanations
+needed to answer them; answers and optional supplementary material may
+use native disclosures.
 
 ## One independent review of the actual learner-visible HTML
 
-Review source + current approved LP plan + the **actual complete page**.
+Review source + current approved LP plan + the saved manuscript when
+present + the **actual complete page**.
 Reviewer must reconstruct the core reasoning using only what readers can
 see, locating each important intermediate step and the source supporting it.
 
@@ -150,7 +165,9 @@ exact excerpt from the *reader-visible main HTML* supporting the verdict.
 A passage hidden in an optional disclosure or an invented quote fails the
 deterministic check. A matching excerpt is traceability evidence, **not**
 proof of actual teaching sufficiency; the isolated Reviewer must explain
-why the cited material demonstrates the mechanism or visual relationship. These source/plan/HTML hashes bind the review to the exact
+why the cited material demonstrates the mechanism or visual relationship.
+For new two-pass plans, include `lesson_sha256` and verify that the final
+HTML retains the manuscript's material reasoning, examples and limits. These source/plan/HTML hashes bind the review to the exact
 files, not to generic intentions. If independent review is unavailable,
 mark REVIEW_UNVERIFIED and do not publish it as passed.
 
