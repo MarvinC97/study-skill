@@ -11,18 +11,25 @@ ROOT=Path(__file__).resolve().parents[1]
 PROTECTED=[
  'study/agents/openai.yaml','study/assets/icon.svg',
  'study/references/first-use.md','study/references/learner-adaptation.md',
- 'study/references/learning-loop.md','study/references/runtime-checks.md',
- 'study/references/state-commands.md','study/references/review-quiz.md',
- 'study/references/unit-teaching.md','study/references/source-planning.md',
+ 'study/references/runtime-checks.md','study/references/state-commands.md',
+ 'study/references/review-quiz.md','study/references/unit-teaching.md',
  'study/references/source-adapters.md','study/references/consolidation.md',
- 'study/references/visual-output.md','study/references/visual-semantics.md',
- 'study/references/writing-clarity.md','study/references/interaction-design.md',
- 'study/references/presentation-qa.md',
+ 'study/references/visual-semantics.md','study/references/interaction-design.md',
  'study/schemas/learner-profile.md','study/schemas/learning-point.md',
  'study/schemas/source-model.md',
  'study/scripts/study_home.py','study/scripts/study_check.py',
  'study/scripts/study_quiz_check.py'
 ]
+# V6.6 revises these guidance files while preserving the V3.5 evidence schema
+# and learner scripts, which remain byte-for-byte protected.
+UPDATABLE={
+ 'study/SKILL.md','study/references/direct-html.md',
+ 'study/references/study-modes.md','study/references/learning-loop.md',
+ 'study/references/deep-module.md','study/references/source-planning.md',
+ 'study/references/visual-output.md','study/references/writing-clarity.md',
+ 'study/references/presentation-qa.md','study/references/v6-agent-runtime.md',
+ 'study/runtime/README.md','study/scripts/merge_into_repo.py'
+}
 
 def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -38,8 +45,8 @@ def plan(repo):
         if rel in PROTECTED:continue
         if rel in ('study/README.md','study/V5_VALIDATION_REPORT.md','study/V6_VALIDATION_REPORT.md','study/VALIDATION_REPORT.md'):continue
         dst=repo/rel
-        if dst.exists() and rel!='study/SKILL.md' and not rel.startswith('study/runtime/'):
-            # Keep all original docs/assets. New V6.6-specific refs are different names.
+        if dst.exists() and rel not in UPDATABLE and not rel.startswith('study/runtime/'):
+            # Legacy V3.5 protected files and unrelated original material stay intact.
             continue
         if dst.is_file() and sha(src)==sha(dst):continue
         actions.append({'operation':'replace' if dst.exists() else 'add','path':rel})
