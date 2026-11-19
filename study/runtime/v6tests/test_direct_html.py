@@ -50,7 +50,11 @@ def approved_review(plan, source, page_id, path, fact_ids):
             "reviewer_context_id":"fixture-separated-reviewer",
             "approved":True,"issues":[],
             "checked_fact_ids":sorted(fact_ids),
-            "checks":[{"dimension":dimension,"passed":True,"reason":REASON}
+            "checks":[{"dimension":dimension,"passed":True,"reason":REASON,
+                        "reader_evidence":
+                        ("由于规则依赖原文中的具体输入，改变输入会影响中间计算和最终结果"
+                         if dimension in {"explanation_depth","teaching_sequence","visual_pedagogy"}
+                         else "")}
                       for dimension in sorted(direct.REVIEW_DIMENSIONS)]}
 
 
@@ -96,6 +100,38 @@ class DirectHtmlTests(unittest.TestCase):
         with self.assertRaises(direct.DirectPageError) as ctx:
             direct.validate_review(self.w,self.plan,self.source,self.page["page_id"])
         self.assertIn("html_sha256",str(ctx.exception))
+
+    def test_generic_or_hidden_review_evidence_is_rejected(self):
+        self.approve_page()
+        review=direct.read(self.review_path)
+        for check in review["checks"]:
+            if check["dimension"]=="explanation_depth":
+                check.pop("reader_evidence")
+        direct.save(self.review_path,review)
+        with self.assertRaises(direct.DirectPageError) as ctx:
+            direct.validate_review(self.w,self.plan,self.source,self.page["page_id"])
+        self.assertIn("reader-visible",str(ctx.exception))
+        self.approve_page()
+        review=direct.read(self.review_path)
+        for check in review["checks"]:
+            if check["dimension"]=="teaching_sequence":
+                # This question is only inside a collapsed answer and cannot
+                # substitute for a visible teaching step.
+                check["reader_evidence"]="如果改变输入条件，结果还一样吗？"
+        direct.save(self.review_path,review)
+        with self.assertRaises(direct.DirectPageError) as ctx:
+            direct.validate_review(self.w,self.plan,self.source,self.page["page_id"])
+        self.assertIn("reader-visible",str(ctx.exception))
+
+    def test_source_review_requires_specific_visible_passage(self):
+        self.approve_page()
+        page,receipt=direct.validate_review(
+            self.w,self.plan,self.source,self.page["page_id"])
+        self.assertTrue(page.is_file())
+        dimensions={x["dimension"] for x in receipt["checks"]
+                    if x.get("reader_evidence")}
+        self.assertEqual(dimensions,
+                         {"explanation_depth","teaching_sequence","visual_pedagogy"})
 
     def test_visible_explanation_before_optional_disclosure(self):
         self.page_path.write_text("""<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1">
