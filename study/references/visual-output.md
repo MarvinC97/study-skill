@@ -1,8 +1,11 @@
 # Visual Output
 
+> **Study 6.6 visual authoring:** Author the actual HTML visual alongside the explanation, using the same objects and labels. A causal diagram should expose meaningful intermediate changes; an experiment should compare true source-reported conditions and results; an interactive calculator must recompute and explain the observed value. A simple concept can use a clear paragraph. Keep figures near their causal explanation, and show key teaching directly. Reviewer checks the finished visible page rather than confirming a component type.
+
+
 Read this for Study overview pages, every standard learning Unit, and Study-E pages. The default experience should resemble a visual explainer, not an essay.
 
-## V6.4 meaningful visual decision
+## Historical V6.4 visual representation contract (legacy only)
 
 Read `lesson-design.md` before creating a new page. Select the representation
 that exposes the concept's causal or quantitative relationship: process,
