@@ -5,6 +5,42 @@
 
 Read when writing teaching text, diagram labels, questions, feedback, or consolidation.
 
+## Teach the inference instead of abbreviating it
+
+The intended reader may have no background in the subject. A technically
+accurate sentence such as "loss is calculated only on response tokens"
+provides a conclusion; teach the process when this mechanism is a page goal:
+show an actual example with the given input, the target output, which
+positions participate, what receives feedback, and how training alters
+subsequent behavior. Define each term before it is used to make a decision.
+
+For a key explanation, the reader should be able to follow:
+- **Starting conditions:** what real input, state or evidence enters, and
+  which assumptions are held fixed.
+- **Intermediate mechanism:** what specific transformation, calculation,
+  supervision signal or choice occurs, including a small example where useful.
+- **Observed or expected result:** exactly what changes and why, with
+  original-source outcomes distinguished from tutor-created illustrations.
+- **Boundary:** what changes under a different condition and what cannot
+  be inferred from the evidence.
+
+Use this as a reasoning check, not a four-box page template. Good explanations
+may interleave prose, one annotated figure and a worked calculation.
+An overview can defer a full derivation to an explicitly mapped later Unit,
+while teaching the shared mechanism and distinctions needed for its own goal.
+
+Avoid unexplained jumps from "reward 1/0" directly to "the policy learns":
+say what is compared, what the learning signal favors, and what that
+conclusion depends on. When the source does not provide a derivation, a
+tutor-authored illustration must be marked as such and stay within the
+supported scope.
+
+**Reader reconstruction test:** can someone with only the prerequisites
+already introduced explain the page's central *why/how* using its visible
+explanation? If the reader must supply a missing causal step, rewrite that
+passage before polishing the layout. Expand a necessary explanation even when
+it takes a paragraph; avoid adding filler merely to reach a word count.
+
 ## Language contract
 
 For this learner, explain in Chinese while retaining English from the source. Preserve technical terms (Agent, Context, Harness, Tool Calling, KV Cache), abbreviations, identifiers, API names, filenames, commands, and code spelling/case. Do not translate executable syntax. Explain a term's meaning and role in Chinese at first useful occurrence; do not require a Chinese replacement for every English word. Reuse the same term in text, diagrams, questions, and feedback.
