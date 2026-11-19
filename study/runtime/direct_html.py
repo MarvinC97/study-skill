@@ -16,6 +16,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 CONTRACT = "direct-html-v1"
+TWO_PASS = "two-pass"
 REVIEW_DIMENSIONS = frozenset((
     "source_fidelity", "explanation_depth", "teaching_sequence",
     "visual_pedagogy", "assessment_fairness",
@@ -56,6 +57,13 @@ def locations(workspace, page_id):
     return (w / "authored-pages" / (page_id + ".html"),
             w / "reviews" / "html" / (page_id + ".json"),
             w / "reports" / "html" / (page_id + ".json"))
+
+
+def lesson_path(workspace, page_id):
+    """Host-authored teaching manuscript used by the two-pass pipeline."""
+    if not PAGE_ID.fullmatch(str(page_id)):
+        raise DirectPageError("invalid page ID")
+    return Path(workspace) / "lesson-drafts" / (page_id + ".md")
 
 
 class PageReader(HTMLParser):
@@ -201,6 +209,17 @@ def validate_review(workspace, plan, source, page_id):
         "source_sha256": source["source_sha256"],
         "plan_sha256": hash_json(plan), "html_sha256": sha(authored.read_bytes()),
     }
+    if plan.get("authoring_mode") == TWO_PASS:
+        manuscript = lesson_path(workspace, page_id)
+        if not manuscript.is_file():
+            raise DirectPageError("G3 two-pass teaching manuscript missing: " + str(manuscript))
+        try:
+            manuscript_text = manuscript.read_text(encoding="utf-8")
+        except UnicodeError as exc:
+            raise DirectPageError("G3 teaching manuscript must be UTF-8") from exc
+        if not manuscript_text.strip():
+            raise DirectPageError("G3 teaching manuscript is empty")
+        expected["lesson_sha256"] = sha(manuscript.read_bytes())
     problems = []
     for key, val in expected.items():
         if review.get(key) != val: problems.append("stale/mismatched final review: " + key)
