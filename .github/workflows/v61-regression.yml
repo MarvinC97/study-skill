@@ -1,7 +1,7 @@
-name: Study V6.5 design-first regression
+name: Study V6.6 direct HTML regression
 on:
   push:
-    branches: [feat/v6.5-lesson-design-quality]
+    branches: [feat/study-6.6-direct-html]
   pull_request:
     paths:
       - 'study/runtime/**'
