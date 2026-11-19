@@ -1,5 +1,8 @@
 # Startup sequencing note · V3.4
 
+> **Study 6.6 current mode:** Use `direct-html.md` and `study-modes.md` as the authoritative page-granularity and final HTML rules. Preserve every required source/LP/experiment fact, but determine Unit and deep page boundaries by coherent learning goals and comprehensibility. Previous numeric LP/page caps, classification fields and early visual component decisions are only heuristics for historical courses.
+
+
 For a new learner/course, follow `first-use.md` before finalizing the route. Knowledge inventory first produces a preliminary map used to ask about relevant prerequisites and target familiarity. After that answer (or explicit skip), adjust and save the final overview. Do not generate formal Unit 1 merely because the source is available. Existing routes and legacy state are preserved.
 
 # Source Planning
