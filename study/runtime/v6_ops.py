@@ -8,9 +8,11 @@ from pathlib import Path
 import study_runtime as v5
 import v61_learner as learners
 from v6_agent import obj,digest,stamp
+import v6_agent as agent
 import lesson_contract as lessons
 import lesson_render as renderer
 import storyboard_contract as sb
+import direct_html
 
 def h(s):return html.escape(str(s),quote=True)
 def slug(s):return re.sub(r'[^a-zA-Z0-9_-]','-',s.lower()).strip('-')[:48] or 'topic'
@@ -160,7 +162,25 @@ def next_unit(ws):
             'awaiting_confirmation':True,'sha256':pending['sha256'],'reused':True}
   if index>=len(plan['pages']):return {'finished':True,'units':len(plan['pages'])}
   pg=plan['pages'][index];ids=pg['lp_ids'];points=[pmap(plan)[x] for x in ids]
-  # Source frozen per unit; all content and reviews must be reproducible from immutable source/plan.
+  if plan.get('render_contract')==direct_html.CONTRACT:
+    accepted=obj(w/'reviews'/'plan-review.json')
+    if (not accepted or accepted.get('approved') is not True
+          or accepted.get('plan_sha256')!=agent.digest(plan)):
+      raise v5.GateError('G2 approved source-grounded course plan is required')
+    try:
+      ready=direct_html.prepare_standard(w,plan,source,pg)
+    except direct_html.DirectPageError as exc:
+      raise v5.GateError(str(exc))
+    path=Path(ready['file'])
+    receipt=record(w,'unit',path,pg['title'],ids)
+    v5.atomic_json(w/'unit-delivery-pending.json',{
+      'file':str(path.resolve()),'unit':index+1,'sha256':ready['sha256'],
+      'page_id':pg['page_id']})
+    return {'file':str(path.resolve()),'unit':index+1,
+            'total':len(plan['pages']),'reviewed':True,
+            'browser':ready['browser'],'artifact':receipt,
+            'awaiting_confirmation':True,'sha256':ready['sha256']}
+  # Legacy structured-course route remains available for previously started courses.
   dpath=w/'drafts'/f'{pg["page_id"]}.json'
   if dpath.exists():draft=v5.read_json(dpath)
   else:raise v5.GateError('host-authored Unit draft missing: '+str(dpath))
