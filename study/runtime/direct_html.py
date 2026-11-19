@@ -280,6 +280,42 @@ def check_page(workspace, plan, source, page_id, *, require_browser=True):
             "reviewed": True, "browser": qa}
 
 
+
+def check_supplement(workspace, plan, source, file, fact_ids):
+    """A versioned direct HTML supplement uses the same final review dimensions."""
+    file = Path(file)
+    page_id = file.stem
+    issues = inspect_html(file)
+    if issues: raise DirectPageError("invalid supplementary HTML: " + "; ".join(issues))
+    review_file = Path(workspace) / "reviews" / "html" / (page_id + ".json")
+    if not review_file.is_file():
+        raise DirectPageError("G4 REVIEW_PENDING: supplementary HTML needs an independent final review")
+    review = read(review_file)
+    expected = {"contract": CONTRACT, "page_id": page_id,
+                "html_sha256": sha(file.read_bytes()),
+                "source_sha256": source["source_sha256"],
+                "plan_sha256": hash_json(plan)}
+    problems = [k for k,v in expected.items() if review.get(k) != v]
+    if problems: raise DirectPageError("stale or invalid supplementary review: " + ", ".join(problems))
+    if (review.get("review_mode") != "isolated_host_agent"
+       or not review.get("reviewer_context_id")
+       or not review.get("writer_context_id")
+       or review["reviewer_context_id"] == review["writer_context_id"]
+       or review.get("approved") is not True or review.get("issues")):
+        raise DirectPageError("independent supplementary reviewer has not approved the HTML")
+    if set(review.get("checked_fact_ids", [])) != set(fact_ids):
+        raise DirectPageError("supplement review missed LP facts")
+    checks = review.get("checks", [])
+    if (not isinstance(checks,list) or len(checks) != len(REVIEW_DIMENSIONS)
+       or {x.get("dimension") for x in checks if isinstance(x,dict)} != REVIEW_DIMENSIONS
+       or any(x.get("passed") is not True or not x.get("reason")
+              for x in checks if isinstance(x,dict))):
+        raise DirectPageError("supplement final semantic review incomplete")
+    qa = browser_check(file)
+    return {"file":str(file.resolve()), "sha256":sha(file.read_bytes()),
+            "reviewed":True,"browser":qa}
+
+
 def prepare_standard(workspace, plan, source, page):
     w = Path(workspace)
     result = check_page(w, plan, source, page["page_id"])
