@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Safely overlay V6.5 host-native Study Skill onto an EXISTING V3.5 Study Git repository.
+"""Safely overlay V6.6 host-native Study Skill onto an EXISTING V3.5 Study Git repository.
 Default is dry-run. Every historical V3.5 path except the entrypoint is kept
-byte-for-byte; V6.5 runtime and new references are additive. No git push.
+byte-for-byte; V6.6 runtime and new references are additive. No git push.
 """
 from __future__ import annotations
 import argparse,hashlib,json,shutil,sys
@@ -39,7 +39,7 @@ def plan(repo):
         if rel in ('study/README.md','study/V5_VALIDATION_REPORT.md','study/V6_VALIDATION_REPORT.md','study/VALIDATION_REPORT.md'):continue
         dst=repo/rel
         if dst.exists() and rel!='study/SKILL.md' and not rel.startswith('study/runtime/'):
-            # Keep all original docs/assets. New V6.5-specific refs are different names.
+            # Keep all original docs/assets. New V6.6-specific refs are different names.
             continue
         if dst.is_file() and sha(src)==sha(dst):continue
         actions.append({'operation':'replace' if dst.exists() else 'add','path':rel})
@@ -55,12 +55,12 @@ def apply(repo,original,actions):
         path=repo/rel
         if not path.exists():continue
         text=path.read_text(encoding='utf-8')
-        if 'V6.5 Host-Native Study' not in text:
-            addition=('> **V6.5 Host-Native Study**：直接使用当前 Codex/DSH 模型，保留 V3.5 学习者档案、学习证据及进度恢复。\n\n'
-                      if rel=='README.md' else '> **V6.5 Host-Native Study:** Uses the current Codex/DSH session model with learner profiles, evidence and recovery.\n\n')
+        if 'V6.6 Host-Native Study' not in text:
+            addition=('> **V6.6 Host-Native Study**：直接使用当前 Codex/DSH 模型，保留 V3.5 学习者档案、学习证据及进度恢复。\n\n'
+                      if rel=='README.md' else '> **V6.6 Host-Native Study:** Uses the current Codex/DSH session model with learner profiles, evidence and recovery.\n\n')
             text=addition+text
-            text=text.replace('版本-V3.5','版本-V6.5').replace('Version-V3.5','Version-V6.5')
-            text=text.replace('好好学习（Study V3.5）','好好学习（Study V6.5）').replace('本项目当前为 **V3.5**','本项目当前为 **V6.5**')
+            text=text.replace('版本-V3.5','版本-V6.6').replace('Version-V3.5','Version-V6.6')
+            text=text.replace('好好学习（Study V3.5）','好好学习（Study V6.6）').replace('本项目当前为 **V3.5**','本项目当前为 **V6.6**')
             path.write_text(text,encoding='utf-8')
     for rel,prior in original.items():
         if sha(repo/rel)!=prior:raise RuntimeError('protected V3.5 file mutated: '+rel)
@@ -73,7 +73,7 @@ def main():
         repo,protected,actions=plan(a.repo)
         if a.apply:apply(repo,protected,actions)
         print(json.dumps({'ok':True,'applied':a.apply,'repo':str(repo),'protected_v35_files':len(protected),
-          'changes':actions,'new_version':'6.5','note':'Review git diff and run tests; no commit/push performed. Existing V3.5 files are preserved.'},ensure_ascii=False,indent=2))
+          'changes':actions,'new_version':'6.6','note':'Review git diff and run tests; no commit/push performed. Existing V3.5 files are preserved.'},ensure_ascii=False,indent=2))
     except Exception as exc:
         print(json.dumps({'ok':False,'error':str(exc)},ensure_ascii=False),file=sys.stderr);sys.exit(2)
 if __name__=='__main__':main()
