@@ -527,11 +527,14 @@ def confirm_delivery(ws,file):
         branch=d.get("navigation",{}).get("deep_branch")
         if not branch or branch.get("workspace")!=str(Path(ws).resolve()):
             raise host.GateError("parent deep branch link changed")
-        if branch.get("next_page",0)>result["index"]:
-            raise host.GateError("parent branch cursor exceeds confirmed delivery")
-        branch["next_page"]=result["index"]
-        queue=need(ws,"delivery-queue.json")
-        branch["status"]="completed" if result["index"]>=len(queue["files"]) else "delivering"
+        # The delivery queue begins with an index.html locator. The deep
+        # learner cursor counts CONTENT pages only, never the directory page.
+        content_count=max(0,result["index"]-1)
+        if branch.get("next_page",0)>content_count:
+            raise host.GateError("parent branch cursor exceeds confirmed content delivery")
+        branch["next_page"]=content_count
+        plan=need(ws,"frozen-plan.json")
+        branch["status"]="completed" if content_count>=len(plan["pages"]) else "delivering"
         learners.save_course(parent,d)
     return result
 
