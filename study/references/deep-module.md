@@ -1,5 +1,8 @@
 # Study-D Multi-Page Deep Module
 
+> **Study 6.6 direct HTML rule (authoritative):** This reference preserves legacy deep-module coverage ideas. For new `direct-html-v1` plans, follow `direct-html.md`: complete LP/experiment coverage and learner approval of the reviewed outline come first, followed by exactly one fully authored and verified HTML teaching page per turn. The author controls explanation order and visuals. Historical V6.x complete-batch generation rules apply only to already-started legacy courses.
+
+
 Read this only when the user invokes:
 
 `/study-d <topic>`
@@ -322,6 +325,6 @@ Before surfacing hidden micro-questions and final Checkpoints, apply `review-qui
 
 ## Adaptive delivery and observable outcomes
 
-Complete module generation still precedes paced delivery. Before surfacing the next page, check only whether newly observed learner gaps materially affect that page. Add a bounded bridge or revise affected future pages when needed, preserving unchanged pages, LP IDs, the main return point and prior evidence. Recheck changed pages and their affected coverage/links; do not regenerate the whole module merely because a preference changed.
+Under V6.6 direct-html-v1, the complete reviewed OUTLINE precedes delivery; each HTML teaching page is authored and reviewed just before its own delivery. Before surfacing the next page, check only whether newly observed learner gaps materially affect that page. Add a bounded bridge or revise affected future pages when needed, preserving unchanged pages, LP IDs, the main return point and prior evidence. Recheck changed pages and their affected coverage/links; do not regenerate the whole module merely because a preference changed.
 
 One delivered page may be a supported native attachment, rendered page or verified HTML link. If no HTML delivery mechanism exists, use the existing one-step visual fallback and disclose that format; a ZIP alone still does not replace paced teaching. Host tool acceptance plus a valid accessible artifact/reference is the delivery event. Do not infer opening, reading or mastery. A failed/uncertain send does not advance the cursor; reconcile what the host actually reported rather than waiting for unavailable read receipts.
