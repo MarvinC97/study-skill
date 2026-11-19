@@ -441,12 +441,73 @@ def knowledge_map(ws):
   file=w/'study-map.html';v5.write_text(file,'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+v5.CSS+'</style><main><h1>Study V6.1 · 知识地图</h1>'+mastery+relhtml+''.join(units)+'</main></html>')
   return {'file':str(file),'units':len(units),'dependencies':len(relations),'current_unit':st.get('current_unit',0)}
 
+def consolidate_direct(ws,topic,plan,source):
+  """Complete offline archive of already authored HTML, keeping its own styling.
+
+  A sandboxed srcdoc page preserves the complete original body, CSS, figures
+  and client-side teaching interactions without rewriting them as summaries.
+  """
+  w=Path(ws);sections=[];covered=[];absent=[]
+  normalized=topic.strip().lower()
+  broad=not normalized or normalized in ('第八章','chapter 8','chapter8','all','全部')
+  def add(label,html_data):
+    title=h(label)
+    srcdoc=h(html_data)
+    sections.append('<section class="chapter"><h2>'+title+'</h2>'
+       '<iframe sandbox="allow-scripts" loading="lazy" title="'+title
+       +'" srcdoc="'+srcdoc+'"></iframe></section>')
+  for page in plan["pages"]:
+    if not broad and normalized not in page["title"].lower() and not any(
+      normalized in p["title"].lower() for p in plan["points"] if p["lp_id"] in page["lp_ids"]):
+      continue
+    path=w/"published"/(page["page_id"]+".html")
+    if path.is_file():
+      add(page["page_id"]+" · "+page["title"],path.read_text(encoding="utf-8"))
+      covered.append(page["page_id"])
+    else:absent.append(page["page_id"])
+  index=obj(w/"v6-artifact-index.json") or {"items":[]}
+  for entry in index.get("items",[]):
+    if entry.get("kind")!="explanation":continue
+    if not broad and normalized not in entry.get("topic","").lower():continue
+    path=Path(entry["file"])
+    if not path.is_file() or v5.sha(path.read_bytes())!=entry.get("sha256"):
+      raise v5.GateError("supplement has changed since registration: "+str(path))
+    add("补充讲解 · "+entry["topic"]+" · "+path.stem,path.read_text(encoding="utf-8"))
+  for exam in sorted((w/"exams").glob("*.json")) if (w/"exams").is_dir() else []:
+    data=obj(exam) or {}
+    if not data.get("questions"):continue
+    if not broad and normalized not in data.get("topic","").lower():continue
+    part=['<!doctype html><html lang="zh-CN"><meta charset="utf-8"><body><main>',
+          '<h1>测验 · '+h(data.get("topic",""))+'</h1>']
+    for q in data["questions"]:
+      part.extend(('<h2>'+h(q["question"])+'</h2>',
+        '<p><strong>答案：</strong>'+h(q["answer"])+'</p>',
+        '<p><strong>依据：</strong>'+h(q["rubric"])+'</p>'))
+    part.append('</main></body></html>')
+    add("测验及完整答案 · "+data.get("topic",""),"".join(part))
+  # Preserve all reader-visible material; completeness is reported separately.
+  if not sections:raise v5.GateError("no generated matching HTML available for consolidation")
+  css='body{font:16px/1.55 system-ui;margin:0;background:#f1f4f6;color:#173039}main{max-width:1100px;margin:auto;padding:24px 16px}h1{font-size:32px}h2{font-size:23px}.chapter{background:white;padding:18px;margin:22px 0;border:1px solid #ccd8dd;border-radius:14px}iframe{display:block;width:100%;height:1000px;max-height:none;border:1px solid #d8e3e6;border-radius:10px}@media(max-width:700px){main{padding:12px}iframe{height:850px}}'
+  out=w/"consolidated"/("c-"+slug(topic or "all")+".html")
+  v5.write_text(out,'<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+   '<meta name="viewport" content="width=device-width,initial-scale=1"><title>完整学习整理</title>'
+   '<style>'+css+'</style></head><body><main><h1>完整学习整理 · '+h(topic or "全部")+'</h1>'
+   '<p>以下每个原始 HTML 保留讲解、图示及互动。已生成页面以原样独立框架呈现。</p>'
+   +''.join(sections)+'</main></body></html>')
+  receipt=record(w,'consolidated',out,topic or 'all',[])
+  return {"file":str(out.resolve()),"pages_included":covered,"not_yet_generated":absent,
+          "sections":len(sections),"artifact":receipt,"full_html_preserved":True}
+
+
 def consolidate_existing(ws,topic):
   """Merge ALL existing topic materials from structured sources, with answers visible.
   This uses the source plan, not merely filenames or current session messages.
   Missing declared artifacts fail closed; ungenerated lessons are excluded and reported.
   """
-  w=Path(ws);plan,source=need_plan(w);index=obj(w/'v6-artifact-index.json') or {'items':[]}
+  w=Path(ws);plan,source=need_plan(w)
+  if plan.get('render_contract')==direct_html.CONTRACT:
+    return consolidate_direct(w,topic,plan,source)
+  index=obj(w/'v6-artifact-index.json') or {'items':[]}
   for item in index['items']:
     if topic and topic.lower() not in item.get('topic','').lower():continue
     f=Path(item['file'])
