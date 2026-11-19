@@ -144,7 +144,13 @@ Review metadata is saved at `reviews/html/<page-id>.json`:
 real distinct `writer_context_id`/`reviewer_context_id`, `approved`,
 `issues`, an exact `checked_fact_ids` set and a `checks` array with
 `dimension`, `passed` and a **page-specific reason** for each of the five
-dimensions. These source/plan/HTML hashes bind the review to the exact
+dimensions. For `explanation_depth`, `teaching_sequence`, and
+`visual_pedagogy`, each check also supplies `reader_evidence`: a short
+exact excerpt from the *reader-visible main HTML* supporting the verdict.
+A passage hidden in an optional disclosure or an invented quote fails the
+deterministic check. A matching excerpt is traceability evidence, **not**
+proof of actual teaching sufficiency; the isolated Reviewer must explain
+why the cited material demonstrates the mechanism or visual relationship. These source/plan/HTML hashes bind the review to the exact
 files, not to generic intentions. If independent review is unavailable,
 mark REVIEW_UNVERIFIED and do not publish it as passed.
 
