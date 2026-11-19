@@ -3,7 +3,7 @@
 > **Study 6.6 visual authoring:** Author the actual HTML visual alongside the explanation, using the same objects and labels. A causal diagram should expose meaningful intermediate changes; an experiment should compare true source-reported conditions and results; an interactive calculator must recompute and explain the observed value. A simple concept can use a clear paragraph. Keep figures near their causal explanation, and show key teaching directly. Reviewer checks the finished visible page rather than confirming a component type.
 
 
-Read this for Study overview pages, every standard learning Unit, and Study-E pages. The default experience should resemble a visual explainer, not an essay.
+Read this for Study overview pages, every standard learning Unit, and Study-E pages. Use visual explanations when they make a relationship clearer; a coherent explanation remains essential.
 
 ## Historical V6.4 visual representation contract (legacy only)
 
@@ -18,16 +18,51 @@ keyboard native disclosure, Checkpoint feedback and JS-disabled core in
 actual Chromium. A diagram that merely repeats a list of terms fails the
 teaching design review.
 
+## V6.6 direct HTML: content-led visual authoring (takes precedence)
+
+For plans with `render_contract: direct-html-v1`, the author owns the actual
+HTML, visual language, and reading order. The V6.4 renderer and older
+card-template guidance elsewhere in this file apply **only to legacy plans**.
+An accepted template or sample is an *optional visual quality reference*,
+not a page-layout requirement. Inspect an accessible learner-approved sample
+to learn its hierarchy, diagram semantics and pacing, then design for the
+current source. Never copy its factual content into another course.
+
+Choose a visual because it exposes something the reader otherwise must infer:
+- **System composition:** clear roles, inputs/outputs and the payload between
+  components.
+- **Causal or training process:** meaningful intermediate change, signal
+  and result; labels must match the adjoining explanation.
+- **Numerical or token-level mechanism:** show concrete values, aligned
+  input/output positions, calculations or before/after probability.
+- **Controlled experiment:** pair actual conditions with actual observed
+  outcomes and state the limits of comparison.
+- **Decision/failure:** depict real alternative paths, first error and
+  downstream consequences; a linear chain must not masquerade as a tree.
+
+Begin with a clear question and an accessible entry point. Put explanatory
+graphics directly beside the mechanism they illustrate. Build explanations
+in readable sections with enough room for a complete reasoning chain.
+Avoid forcing 1–3 sentence limits, a fixed number of figures, a fixed
+WHY/INTUITION/MECHANISM card sequence, or mandatory interactions.
+Questions generally follow the teaching needed to answer them. Core prose,
+key diagram meanings and worked calculations remain visible by default.
+
+A source-faithful **text-only** paragraph is appropriate when a visual
+would add little. A rich layout with attractive cards but no inspectable
+relationship needs revision. Keep exact technical terms in the figure and
+body; distinguish learner-authored hypothetical data from original reports.
+
 ## Preferred format
 
-When the host can create or display HTML, ALWAYS create a self-contained HTML learning page. Use `../assets/overview-template.html` for the initial Study overview and `../assets/unit-template.html` for Units.
+When the host can create or display HTML, create a self-contained HTML page. For **legacy V3–V6.5** plans, `../assets/overview-template.html` and `../assets/unit-template.html` remain available as optional starting assets. For `direct-html-v1`, author the page's explanation and layout directly.
 
 When HTML is unavailable, reproduce the same information hierarchy in compact Markdown using diagrams, arrows, boxes, and short blocks.
 
 ## Visual principles
 
 - One main idea per screen/section.
-- Prefer 1–3 short sentences over paragraphs.
+- Use readable paragraphs or short blocks as the mechanism needs; preserve every necessary inference step.
 - Choose diagrams when they make the relationship easier to inspect; use clear text for simple ideas. Read `visual-semantics.md` for arrow and relationship rules.
 - Use large labels and obvious direction of flow.
 - Reveal technical depth progressively.
@@ -36,7 +71,7 @@ When HTML is unavailable, reproduce the same information hierarchy in compact Ma
 - Use examples as part of the visual flow.
 - Keep technical terminology visible in both learner language and source language when useful.
 
-## Unit page order
+## Historical Unit page order (legacy reference; never mandatory for direct-html-v1)
 
 1. Locator + progress
 2. WHY
@@ -56,7 +91,7 @@ Do not force every Unit to use every card.
 - Responsive on desktop and mobile.
 - Accessible contrast and readable font sizes.
 - No decorative animation needed.
-- No dense article-width text walls.
+- Break genuinely dense passages with meaningful explanations and examples; retain the reasoning rather than deleting it.
 - Use semantic HTML where practical.
 - Prefer simple CSS diagrams over complex SVG when possible.
 - Use `<details>` for optional engineering depth or source notes in normal Units. `/study-c` is the exception: all core content, questions and answers must be visible without disclosure controls.
