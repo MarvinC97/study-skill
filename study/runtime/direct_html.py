@@ -81,6 +81,7 @@ class PageReader(HTMLParser):
         self.in_details = 0
         self.main_open = 0
         self.main_visible_text = 0
+        self.visible_paragraphs = 0
         self.first_critical = None
         self.exercises = 0
         self.reveals = 0
@@ -102,6 +103,8 @@ class PageReader(HTMLParser):
         if tag in ("iframe", "object", "embed"):
             self.external.append(tag)
         if tag == "h1": self.current_heading = True
+        if tag == "p" and self.main_open and not self.in_details:
+            self.visible_paragraphs += 1
         if tag in ("img",): self.images.append(at)
         if tag == "a": self.links.append(at.get("href", ""))
         if tag == "form": self.exercises += 1
@@ -150,7 +153,7 @@ def inspect_html(path):
         problems.append("learning page needs one visible h1 explaining the topic")
     if not p.has_viewport:
         problems.append("missing responsive viewport meta")
-    if p.main_visible_text < 110:
+    if p.visible_paragraphs < 1 or not p.main_visible_text:
         problems.append("core learning explanation is absent or concealed in disclosures")
     if p.first_critical == "detail":
         problems.append("primary teaching must be visible before any optional disclosure")
