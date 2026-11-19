@@ -24,8 +24,8 @@ For new courses use `render_contract: "direct-html-v1"` and
 source and writes/finalizes `lesson-drafts/<page-id>.md` as a complete,
 coherent explanation. **Pass 2:** a separate Visual Builder reads that
 manuscript and, where accessible, a learner-approved visual benchmark, then
-creates `authored-pages/<page-id>.html` with genuinely useful diagrams
-and interactions. Use the existing connected model, preferably distinct
+creates complete, readable HTML at `authored-pages/<page-id>.html`
+with genuinely useful diagrams and interactions. Use the existing connected model, preferably distinct
 author/builder contexts. Run ONE independent final review of source,
 manuscript and actual HTML, then browser QA. No Spec, Storyboard, component
 quota or extra approval stage. Earlier direct HTML and legacy plans remain
