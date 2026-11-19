@@ -8,7 +8,7 @@ description: >
   then review its actual teaching quality.
 ---
 
-# Study 6.6 · Read → Explain → HTML → Review → Learn
+# Study V6.6 · Read → Explain → HTML → Review → Learn
 
 ## One purpose, one model
 
