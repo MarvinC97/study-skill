@@ -5,6 +5,52 @@
 
 Read before delivering generated HTML/diagrams and after changing templates. Coverage QA asks whether the scoped knowledge is covered. Presentation QA asks whether the representations and interactions teach that knowledge accurately. Neither proves learner mastery.
 
+## V6.6 final-review protocol: two independent pass conditions
+
+The existing single isolated final Reviewer must judge **both** source
+fidelity and learner understanding in the *same final HTML*. Review the
+real source passages and read the actual page top to bottom as a learner
+with only its stated prerequisites. Do not approve solely because Fact IDs,
+citations, HTML controls, summaries or headings are present.
+
+**Pass A — source fidelity.** For each important scoped LP, trace the key
+claims to the original material. Check definitions, data, formulas, causal
+scope, experiment settings and limits. A visually excellent page that
+changes the author's meaning or substitutes an invented example for a
+reported result FAILS.
+
+**Pass B — explanatory sufficiency.** Reconstruct the central mechanism
+using only learner-visible material. Identify the starting condition,
+intermediate operation or signal, observed/resulting change, and why it
+follows. Confirm that prerequisites appear before they are used and that
+a real example traverses the same chain. A factual collection of stage
+summaries that leaves the intermediate training/algorithm steps for the
+reader to imagine FAILS when the page objective is mechanism understanding.
+A roadmap may be concise when it shows its shared mental model and clearly
+places detailed derivations in the approved later pages.
+
+**Visible representation check.** Explain what each central graphic adds
+to the understanding and point to the relevant text or values on the
+actual page. A comparison table is useful for differences; a list of
+cards is insufficient as a substitute for explaining *how* a process works.
+Text-only passes where a diagram offers no useful new relationship.
+When a learner-approved high-quality sample is actually accessible, compare
+clarity, depth, figure-text coordination and overall reading hierarchy
+against it, using the sample for *presentation quality only*.
+
+**Feedback and revision.** Reject with a concrete location in the final
+HTML, the missing/incorrect reasoning step or visual relationship, and the
+precise source condition it affects. Revise that passage or illustration,
+then review the final changed HTML again. One reviewer pass and one
+browser/software QA pass are the default; no new JSON stage or repeated
+generic audit essays. Hashes prove what was reviewed, not educational merit.
+
+Final reviewers must anchor their explanation-depth, sequence and visual
+judgments to evidence that is actually visible before optional disclosures,
+while documenting a specific reason a learner can follow the reasoning.
+The deterministic runtime checks these evidence anchors, but a real
+independent reviewer remains responsible for semantic quality.
+
 ## Minimum review
 
 - Source fidelity: facts, important conditions, exceptions, numbers, original English terms/code, and source anchors are preserved.

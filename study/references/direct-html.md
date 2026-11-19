@@ -33,6 +33,61 @@ course return point and the deep cursor.
 Both modes share V3.5 stable LP IDs, course state schema 3.0 and genuine
 answer evidence. Navigation or clicking an answer never establishes mastery.
 
+## Two inputs with separate authority: original source + approved teaching benchmark
+
+**The selected original source is the authority for facts.** Read the
+page's actual passages and relevant surrounding material, including any
+equations, figures, experiment setup, limitations and exceptions. Preserve
+the approved LP/Unit scope and indicate material intentionally taught on
+a later page. An LP title or Fact ID alone is insufficient teaching input.
+
+**A previously accepted high-quality HTML sample is an optional presentation
+benchmark.** When a sample is actually accessible and approved by the learner,
+read the HTML or view the rendered page before authoring. Observe how it
+introduces terms, lays out a causal relationship, places diagrams next to
+the steps they explain, walks through a concrete case, and checks understanding.
+Reuse those teaching principles and visual standard; source facts, numerical
+values, experimental results and scope still come exclusively from the current
+original source. Never invent a benchmark, reuse another course's facts, or
+force its layout onto a different topic. If no sample is available, use the
+reader-comprehension criteria below without claiming sample equivalence.
+
+The author solves **two independent obligations in the same HTML**:
+1. SOURCE FIDELITY: each scoped important LP, source condition and claim
+   is supported and retains the author's intended meaning and limits.
+2. READER COMPREHENSION: a learner with stated prerequisites can follow
+   the key reasoning on this page and use it in a comparable new situation.
+
+A visually polished page that drifts from the source fails (1).
+An accurate list of conclusions that omits the reasoning fails (2).
+
+## Evidence-to-explanation handoff (in the author's reasoning, not another artifact)
+
+Before writing a mechanism, identify its source evidence, starting conditions,
+intermediate operation or training signal, resulting change, and why that
+change follows. Explain these in a coherent narrative. Use one concrete
+example through the full mechanism when it improves understanding. Only then
+choose a figure, table, math walkthrough or interaction to make the
+relationship inspectable. This handoff is an **authoring practice**; do not
+create mandatory Spec, Storyboard, modules, page quotas or extra approval files.
+
+For a **roadmap/overview**, make the shared mechanism and meaningful
+differences visible, while clearly pointing to the later detailed pages.
+A comparison table can give the map; it cannot alone serve as the complete
+explanation when the page's goal includes *how* the mechanism works.
+For an **algorithm, training step or formula**, show an actual
+input → operation/signal → intermediate effect → result and its boundary.
+For an **experiment**, retain its real conditions, comparison, observed
+numbers (if reported), interpretation and inference limit.
+For a **failure case**, locate the earliest wrong decision, show downstream
+effects and explain how the correction changes the outcome.
+
+The reader-visible mechanism must appear where it is needed, with
+explanatory graphics beside the relevant passage. Core knowledge remains
+readable without toggling a disclosure. A screenshot containing attractive
+cards, a list of categories, or a correct answer does not establish
+understanding.
+
 ## Authoring sequence: one source → one complete lesson
 
 1. Read the actual page source and necessary surrounding paragraphs, source
@@ -89,7 +144,13 @@ Review metadata is saved at `reviews/html/<page-id>.json`:
 real distinct `writer_context_id`/`reviewer_context_id`, `approved`,
 `issues`, an exact `checked_fact_ids` set and a `checks` array with
 `dimension`, `passed` and a **page-specific reason** for each of the five
-dimensions. These source/plan/HTML hashes bind the review to the exact
+dimensions. For `explanation_depth`, `teaching_sequence`, and
+`visual_pedagogy`, each check also supplies `reader_evidence`: a short
+exact excerpt from the *reader-visible main HTML* supporting the verdict.
+A passage hidden in an optional disclosure or an invented quote fails the
+deterministic check. A matching excerpt is traceability evidence, **not**
+proof of actual teaching sufficiency; the isolated Reviewer must explain
+why the cited material demonstrates the mechanism or visual relationship. These source/plan/HTML hashes bind the review to the exact
 files, not to generic intentions. If independent review is unavailable,
 mark REVIEW_UNVERIFIED and do not publish it as passed.
 

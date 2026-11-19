@@ -1,7 +1,7 @@
 name: Study V6.6 direct HTML regression
 on:
   push:
-    branches: [feat/study-6.6-direct-html]
+    branches: [main, fix/study66-teaching-fidelity]
   pull_request:
     paths:
       - 'study/runtime/**'
