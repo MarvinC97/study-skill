@@ -1,6 +1,6 @@
 # Study V6.6 · Host-Native Runtime
 
-> **V6.6 direct HTML (default for new plans):** set `render_contract: direct-html-v1`; write `authored-pages/<page-id>.html` directly with the host model. Independent reviewer writes `reviews/html/<page-id>.json` bound to original source, current plan, HTML SHA256 and all required Fact IDs. Run `v6_agent.py direct-page-check --workspace WS --page-id PAGE`. `study-n` and `stage-next-page` verify, browser-test and publish exact authored bytes; pending delivery confirmation advances the Unit/deep cursor. No compulsory storyboard, spec, page layout, component, page/LP count or arbitrary word length. This path preserves V3.5 learner records. Historical renderer and receipts stay for previously started courses.
+> **V6.6 B-mode (default for new plans):** set `render_contract: direct-html-v1` and `authoring_mode: two-pass`. The existing host model first saves complete `lesson-drafts/<page-id>.md` (Teaching Author), then a separate Visual Builder pass creates `authored-pages/<page-id>.html` from the manuscript, using an accessible approved visual sample when available. One independent Reviewer checks original source, manuscript and actual HTML. Its `reviews/html/<page-id>.json` receipt binds source/plan/HTML plus `lesson_sha256` and required Fact IDs. Run `v6_agent.py direct-page-check --workspace WS --page-id PAGE`. `study-n` and `stage-next-page` verify, browser-test and publish exact authored bytes; pending delivery confirmation advances the Unit/deep cursor. No compulsory storyboard, spec, page layout, component, page/LP count or arbitrary word length. This path preserves V3.5 learner records. Historical renderer and receipts stay for previously started courses.
 
 
 **Codex / DSH supplies the model via its already connected session.**
@@ -47,7 +47,7 @@ than seven standalone model API entrypoints.
 
 ## Historical V6.5 component storyboard and rendered-page review
 
-For NEW plans, set `render_contract: storyboard-v1` in the approved
+For historical V6.5 plans, set `render_contract: storyboard-v1` in the approved
 `plan.json`. G3 sequence: `lesson-specs/<page-id>.json` → isolated design
 review → `design-check` → `storyboards/<page-id>.json` → isolated storyboard
 review → `storyboard-check` → full content draft and G4 review. New pages
@@ -65,13 +65,12 @@ delivered V3.5/V6.5 course data remains in place.
 See `../references/storyboard-components.md` for the exact format and
 workflows. No extra LLM provider, WSL2 or user-facing slash command.
 
-## V6.5 pre-render quality gate
+## Historical V6.5 pre-render quality gate
 
 The host first writes `lesson-specs/P001.json` and obtains a genuine isolated
 review at `reviews/design/P001.json`. Run `v6_agent.py design-check --workspace
 WORKSPACE --page-id P001` **before writing** `drafts/P001.json`. G4 content
-review must bind the approved spec SHA256 as well as the draft SHA256. New
-Study and Study-D page entrypoints refuse an absent or stale design review.
+review must bind the approved spec SHA256 as well as the draft SHA256. Historical V6.5 Study and Study-D page entrypoints require a current design review.
 The type-aware HTML renderer presents meaningful diagrams and tests native
 keyboard disclosure and JS-off readability. See
 [`../references/lesson-design.md`](../references/lesson-design.md).
