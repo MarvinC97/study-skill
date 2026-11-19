@@ -296,6 +296,22 @@ def confirm_unit_delivery(ws,file):
 def explanation(ws,topic):
   """Render a host-authored explanation after a separate host-agent review."""
   w=Path(ws);plan,source=need_plan(w);points=match(plan,topic)
+  if plan.get('render_contract')==direct_html.CONTRACT:
+    # Each re-explanation is a new authored HTML revision; preserve older ones.
+    prefix='e-'+slug(topic)+'-v'
+    candidates=sorted((w/'supplements').glob(prefix+'[0-9][0-9][0-9].html'))
+    prior=obj(w/'v6-artifact-index.json') or {'items':[]}
+    used={entry.get('file') for entry in prior.get('items',[]) if entry.get('kind')=='explanation'}
+    fresh=[path for path in candidates if str(path.resolve()) not in used]
+    if not fresh:
+      raise v5.GateError('write a new versioned supplements/'+prefix+'NNN.html; prior explanations remain preserved')
+    page=fresh[0];facts={f['id'] for p in points for f in p['required_facts']}
+    try:checked=direct_html.check_supplement(w,plan,source,page,facts)
+    except direct_html.DirectPageError as exc:raise v5.GateError(str(exc))
+    receipt=record(w,'explanation',page,topic,[p['lp_id'] for p in points])
+    return {'file':str(page.resolve()),'reviewed':True,'browser':checked['browser'],
+            'artifact':receipt,'awaiting_delivery_confirmation':True,
+            'version':page.stem}
   if len(points)>2:points=points[:2]
   ids=[x['lp_id'] for x in points];sp={s['id']:s for s in source['segments']}
   evidence=[{'lp_id':p['lp_id'],'goal':p['goal'],'facts':p['required_facts'],
