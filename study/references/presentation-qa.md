@@ -7,8 +7,9 @@ Read before delivering generated HTML/diagrams and after changing templates. Cov
 
 ## V6.6 final-review protocol: two independent pass conditions
 
-The existing single isolated final Reviewer must judge **both** source
-fidelity and learner understanding in the *same final HTML*. Review the
+The existing single isolated final Reviewer reads the **original source,
+completed teaching manuscript (when present), and final HTML** and must
+judge **both** source fidelity and learner understanding in the HTML. Review the
 real source passages and read the actual page top to bottom as a learner
 with only its stated prerequisites. Do not approve solely because Fact IDs,
 citations, HTML controls, summaries or headings are present.
@@ -28,6 +29,13 @@ summaries that leaves the intermediate training/algorithm steps for the
 reader to imagine FAILS when the page objective is mechanism understanding.
 A roadmap may be concise when it shows its shared mental model and clearly
 places detailed derivations in the approved later pages.
+
+**Manuscript-to-HTML transfer.** For two-pass plans, compare the saved
+teaching manuscript to the page and identify substantial reasoning, worked
+examples, experimental limits or source evidence omitted or changed during
+visual implementation. Require the final review to bind the exact
+`lesson_sha256`. A hash match establishes revision identity only; the
+Reviewer decides whether the full learning content was preserved.
 
 **Visible representation check.** Explain what each central graphic adds
 to the understanding and point to the relevant text or values on the
