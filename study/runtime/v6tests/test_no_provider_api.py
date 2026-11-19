@@ -24,6 +24,6 @@ class NoStandaloneProviderTests(unittest.TestCase):
     def test_skill_declares_current_host_as_model(self):
         skill=(ROOT/'SKILL.md').read_text(encoding='utf-8')
         self.assertIn('Codex/DSH agent',skill)
-        self.assertIn('version: "6.5"',skill)
-        self.assertIn('independently approved',skill)
+        self.assertIn('version: "6.6"',skill)
+        self.assertIn('direct-html-v1',skill)
 if __name__=='__main__':unittest.main()

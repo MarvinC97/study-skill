@@ -16,6 +16,7 @@ import quality_contract as qc
 import lesson_contract as lessons
 import lesson_render as renderer
 import storyboard_contract as sb
+import direct_html
 
 def load(p):
     return host.read_json(p)
@@ -288,11 +289,28 @@ def accept_content_review(ws,review_file):
     return {"reviewed":True,"pages":len(page_receipts),
             "checked_fact_ids":len(all_ids),"reused_pages":result["reused_pages"]}
 
-def stage_next_page(ws,review_file):
-    """Review, browser-test and prepare ONE page from an approved frozen plan.
-    Previously delivered pages and receipts remain unchanged.
-    """
+def direct_page_check(ws,page_id):
+    w=Path(ws)
+    plan=need(w,"frozen-plan.json") if (w/"frozen-plan.json").is_file() else need(w,"plan.json")
+    src=need(w,"source.json")
+    if plan.get("render_contract")!=direct_html.CONTRACT:
+        raise host.GateError("direct-page-check is only for direct-html-v1 plans")
+    try:
+        return direct_html.check_page(w,plan,src,page_id)
+    except direct_html.DirectPageError as exc:
+        raise host.GateError(str(exc))
+
+
+def stage_next_page(ws,review_file=None):
+    """Stage one reviewed HTML for the current approved Study-D route."""
     w=Path(ws);plan=need(w,"frozen-plan.json");src=need(w,"source.json")
+    if plan.get("render_contract")==direct_html.CONTRACT:
+        try:
+            return direct_html.prepare_deep(w,plan,src,host)
+        except direct_html.DirectPageError as exc:
+            raise host.GateError(str(exc))
+    if not review_file:
+        raise host.GateError("legacy staged content requires --review-file")
     if plan.get("mode")!="study-d":
         raise host.GateError("stage-next-page applies to an approved Study-D plan")
     original=need(w,"plan.json")
@@ -437,6 +455,8 @@ def check_review_integrity(ws):
 
 def render(ws):
     plan=need(ws,"frozen-plan.json");src=need(ws,"source.json")
+    if plan.get("render_contract")==direct_html.CONTRACT:
+        raise host.GateError("V6.6 direct HTML is authored by the host; use direct-page-check and stage-next-page")
     lookup={p["lp_id"]:p for p in plan["points"]}
     for page in plan["pages"]:
         draft=need(ws,"drafts/"+page["page_id"]+".json")
@@ -446,6 +466,8 @@ def render(ws):
 
 def verify(ws):
     plan=need(ws,"frozen-plan.json")
+    if plan.get("render_contract")==direct_html.CONTRACT:
+        raise host.GateError("V6.6 verifies each actual authored page with direct-page-check; use stage-next-page for delivery")
     check_review_integrity(ws)
     if digest(plan)!=need(ws,"reviews/plan-review.json").get("plan_sha256"):
         raise host.GateError("approved plan changed before verification")
@@ -456,6 +478,9 @@ def verify(ws):
     return host.state(ws).get("gates",{})
 
 def publish(ws):
+    plan=need(ws,"frozen-plan.json")
+    if plan.get("render_contract")==direct_html.CONTRACT:
+        raise host.GateError("V6.6 publishes each reviewed HTML via stage-next-page; no full-batch rewrite")
     check_review_integrity(ws)
     plan=need(ws,"frozen-plan.json")
     if plan.get("render_contract")=="storyboard-v1":
@@ -502,11 +527,14 @@ def confirm_delivery(ws,file):
         branch=d.get("navigation",{}).get("deep_branch")
         if not branch or branch.get("workspace")!=str(Path(ws).resolve()):
             raise host.GateError("parent deep branch link changed")
-        if branch.get("next_page",0)>result["index"]:
-            raise host.GateError("parent branch cursor exceeds confirmed delivery")
-        branch["next_page"]=result["index"]
-        queue=need(ws,"delivery-queue.json")
-        branch["status"]="completed" if result["index"]>=len(queue["files"]) else "delivering"
+        # The delivery queue begins with an index.html locator. The deep
+        # learner cursor counts CONTENT pages only, never the directory page.
+        content_count=max(0,result["index"]-1)
+        if branch.get("next_page",0)>content_count:
+            raise host.GateError("parent branch cursor exceeds confirmed content delivery")
+        branch["next_page"]=content_count
+        plan=need(ws,"frozen-plan.json")
+        branch["status"]="completed" if content_count>=len(plan["pages"]) else "delivering"
         learners.save_course(parent,d)
     return result
 
@@ -521,7 +549,7 @@ def status(ws):
 def main():
     p=argparse.ArgumentParser(description="Study host-native deterministic runtime (no model API)")
     p.add_argument("command",choices=("bind","ingest","plan-check","accept-plan-review",
-      "overview","approve-outline","freeze","design-check","storyboard-check","render-review-check","draft-check","render","check-content",
+      "overview","approve-outline","freeze","direct-page-check","design-check","storyboard-check","render-review-check","draft-check","render","check-content",
       "accept-content-review","stage-next-page","verify","publish","deliver-next","confirm-delivery","hash-json","status"))
     p.add_argument("--workspace",required=True)
     p.add_argument("--source")
@@ -549,6 +577,9 @@ def main():
         elif a.command=="overview":result=overview(w)
         elif a.command=="approve-outline":result=host.approve_outline(w)
         elif a.command=="freeze":result=freeze(w)
+        elif a.command=="direct-page-check":
+            if not a.page_id:raise host.GateError("direct-page-check requires --page-id")
+            result=direct_page_check(w,a.page_id)
         elif a.command=="design-check":
             if not a.page_id:raise host.GateError("design-check requires --page-id")
             result=design_check(w,a.page_id)
@@ -575,7 +606,6 @@ def main():
             if not a.review_file:raise host.GateError("accept-content-review requires --review-file")
             result=accept_content_review(w,a.review_file)
         elif a.command=="stage-next-page":
-            if not a.review_file:raise host.GateError("stage-next-page requires --review-file")
             result=stage_next_page(w,a.review_file)
         elif a.command=="verify":result=verify(w)
         elif a.command=="publish":result=publish(w)

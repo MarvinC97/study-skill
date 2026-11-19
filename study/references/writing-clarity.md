@@ -1,5 +1,8 @@
 # Clear explanations with source English preserved
 
+> **Study 6.6 explanation-depth check:** Define a term before using it to reach a conclusion. Trace concrete input, intermediate steps, resulting output and WHY the result follows. Include a complete worked example; when conditions change, explain what would change and why. A list of correct categories or a summary card cannot substitute for the missing mechanism. Put self-check after teaching and keep critical explanations visible. The final Reviewer must reconstruct the reasoning from the page itself.
+
+
 Read when writing teaching text, diagram labels, questions, feedback, or consolidation.
 
 ## Language contract

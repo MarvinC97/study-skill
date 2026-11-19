@@ -1,5 +1,8 @@
 # Presentation QA and repeatable acceptance cases
 
+> **Study 6.6 final-page acceptance:** Independently inspect the actual HTML with original source, not just the plan or reviewer metadata. A learner must be able to answer: What is happening? Why? How did the intermediate state change? When does the result fail? Verify that definitions precede applications, important explanations are visible and visuals carry explanatory meaning. Reject a page that starts with a diagnostic task whose prerequisites have not yet been taught. Browser checks confirm rendering/interactions separately from semantic teaching review.
+
+
 Read before delivering generated HTML/diagrams and after changing templates. Coverage QA asks whether the scoped knowledge is covered. Presentation QA asks whether the representations and interactions teach that knowledge accurately. Neither proves learner mastery.
 
 ## Minimum review

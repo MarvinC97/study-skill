@@ -1,5 +1,16 @@
 > **V6.5 Host-Native Study Skill** · 直接使用当前 Codex/DSH 会话模型与工具。完整保留学习者档案、G1–G6 质量门禁、首次建档、答题证据和进度恢复。无需单独配置模型 API 或密钥；HTML 浏览器验证需要宿主具备相应工具。
 
+## Study 6.6：直接生成易理解的 HTML
+
+默认流程：读取原文与完整 LP 大纲 → 作者直接编写一页连贯的 HTML →
+独立审阅实际页面 → Chromium 视效与操作检查 → 确认交付。普通
+`/study` 合并相关 LP 为完整学习单元；`/study-d` 逐机制、公式或实验深入。
+原有七个命令、V3.5 学习档案、真实答题证据及恢复位置继续保留。
+新课程使用 `render_contract: direct-html-v1`，历史课程按原版渲染路径读取。
+
+见 [6.6 直接 HTML 教学规范](study/references/direct-html.md)。
+
+
 <p align="center">
   <img src="study/assets/icon.svg" alt="好好学习图标" width="84" />
 </p>

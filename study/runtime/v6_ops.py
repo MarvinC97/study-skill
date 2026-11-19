@@ -8,9 +8,11 @@ from pathlib import Path
 import study_runtime as v5
 import v61_learner as learners
 from v6_agent import obj,digest,stamp
+import v6_agent as agent
 import lesson_contract as lessons
 import lesson_render as renderer
 import storyboard_contract as sb
+import direct_html
 
 def h(s):return html.escape(str(s),quote=True)
 def slug(s):return re.sub(r'[^a-zA-Z0-9_-]','-',s.lower()).strip('-')[:48] or 'topic'
@@ -160,7 +162,25 @@ def next_unit(ws):
             'awaiting_confirmation':True,'sha256':pending['sha256'],'reused':True}
   if index>=len(plan['pages']):return {'finished':True,'units':len(plan['pages'])}
   pg=plan['pages'][index];ids=pg['lp_ids'];points=[pmap(plan)[x] for x in ids]
-  # Source frozen per unit; all content and reviews must be reproducible from immutable source/plan.
+  if plan.get('render_contract')==direct_html.CONTRACT:
+    accepted=obj(w/'reviews'/'plan-review.json')
+    if (not accepted or accepted.get('approved') is not True
+          or accepted.get('plan_sha256')!=agent.digest(plan)):
+      raise v5.GateError('G2 approved source-grounded course plan is required')
+    try:
+      ready=direct_html.prepare_standard(w,plan,source,pg)
+    except direct_html.DirectPageError as exc:
+      raise v5.GateError(str(exc))
+    path=Path(ready['file'])
+    receipt=record(w,'unit',path,pg['title'],ids)
+    v5.atomic_json(w/'unit-delivery-pending.json',{
+      'file':str(path.resolve()),'unit':index+1,'sha256':ready['sha256'],
+      'page_id':pg['page_id']})
+    return {'file':str(path.resolve()),'unit':index+1,
+            'total':len(plan['pages']),'reviewed':True,
+            'browser':ready['browser'],'artifact':receipt,
+            'awaiting_confirmation':True,'sha256':ready['sha256']}
+  # Legacy structured-course route remains available for previously started courses.
   dpath=w/'drafts'/f'{pg["page_id"]}.json'
   if dpath.exists():draft=v5.read_json(dpath)
   else:raise v5.GateError('host-authored Unit draft missing: '+str(dpath))
@@ -276,6 +296,22 @@ def confirm_unit_delivery(ws,file):
 def explanation(ws,topic):
   """Render a host-authored explanation after a separate host-agent review."""
   w=Path(ws);plan,source=need_plan(w);points=match(plan,topic)
+  if plan.get('render_contract')==direct_html.CONTRACT:
+    # Each re-explanation is a new authored HTML revision; preserve older ones.
+    prefix='e-'+slug(topic)+'-v'
+    candidates=sorted((w/'supplements').glob(prefix+'[0-9][0-9][0-9].html'))
+    prior=obj(w/'v6-artifact-index.json') or {'items':[]}
+    used={entry.get('file') for entry in prior.get('items',[]) if entry.get('kind')=='explanation'}
+    fresh=[path for path in candidates if str(path.resolve()) not in used]
+    if not fresh:
+      raise v5.GateError('write a new versioned supplements/'+prefix+'NNN.html; prior explanations remain preserved')
+    page=fresh[0];facts={f['id'] for p in points for f in p['required_facts']}
+    try:checked=direct_html.check_supplement(w,plan,source,page,facts)
+    except direct_html.DirectPageError as exc:raise v5.GateError(str(exc))
+    receipt=record(w,'explanation',page,topic,[p['lp_id'] for p in points])
+    return {'file':str(page.resolve()),'reviewed':True,'browser':checked['browser'],
+            'artifact':receipt,'awaiting_delivery_confirmation':True,
+            'version':page.stem}
   if len(points)>2:points=points[:2]
   ids=[x['lp_id'] for x in points];sp={s['id']:s for s in source['segments']}
   evidence=[{'lp_id':p['lp_id'],'goal':p['goal'],'facts':p['required_facts'],
@@ -405,12 +441,73 @@ def knowledge_map(ws):
   file=w/'study-map.html';v5.write_text(file,'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+v5.CSS+'</style><main><h1>Study V6.1 · 知识地图</h1>'+mastery+relhtml+''.join(units)+'</main></html>')
   return {'file':str(file),'units':len(units),'dependencies':len(relations),'current_unit':st.get('current_unit',0)}
 
+def consolidate_direct(ws,topic,plan,source):
+  """Complete offline archive of already authored HTML, keeping its own styling.
+
+  A sandboxed srcdoc page preserves the complete original body, CSS, figures
+  and client-side teaching interactions without rewriting them as summaries.
+  """
+  w=Path(ws);sections=[];covered=[];absent=[]
+  normalized=topic.strip().lower()
+  broad=not normalized or normalized in ('第八章','chapter 8','chapter8','all','全部')
+  def add(label,html_data):
+    title=h(label)
+    srcdoc=h(html_data)
+    sections.append('<section class="chapter"><h2>'+title+'</h2>'
+       '<iframe sandbox="allow-scripts" loading="lazy" title="'+title
+       +'" srcdoc="'+srcdoc+'"></iframe></section>')
+  for page in plan["pages"]:
+    if not broad and normalized not in page["title"].lower() and not any(
+      normalized in p["title"].lower() for p in plan["points"] if p["lp_id"] in page["lp_ids"]):
+      continue
+    path=w/"published"/(page["page_id"]+".html")
+    if path.is_file():
+      add(page["page_id"]+" · "+page["title"],path.read_text(encoding="utf-8"))
+      covered.append(page["page_id"])
+    else:absent.append(page["page_id"])
+  index=obj(w/"v6-artifact-index.json") or {"items":[]}
+  for entry in index.get("items",[]):
+    if entry.get("kind")!="explanation":continue
+    if not broad and normalized not in entry.get("topic","").lower():continue
+    path=Path(entry["file"])
+    if not path.is_file() or v5.sha(path.read_bytes())!=entry.get("sha256"):
+      raise v5.GateError("supplement has changed since registration: "+str(path))
+    add("补充讲解 · "+entry["topic"]+" · "+path.stem,path.read_text(encoding="utf-8"))
+  for exam in sorted((w/"exams").glob("*.json")) if (w/"exams").is_dir() else []:
+    data=obj(exam) or {}
+    if not data.get("questions"):continue
+    if not broad and normalized not in data.get("topic","").lower():continue
+    part=['<!doctype html><html lang="zh-CN"><meta charset="utf-8"><body><main>',
+          '<h1>测验 · '+h(data.get("topic",""))+'</h1>']
+    for q in data["questions"]:
+      part.extend(('<h2>'+h(q["question"])+'</h2>',
+        '<p><strong>答案：</strong>'+h(q["answer"])+'</p>',
+        '<p><strong>依据：</strong>'+h(q["rubric"])+'</p>'))
+    part.append('</main></body></html>')
+    add("测验及完整答案 · "+data.get("topic",""),"".join(part))
+  # Preserve all reader-visible material; completeness is reported separately.
+  if not sections:raise v5.GateError("no generated matching HTML available for consolidation")
+  css='body{font:16px/1.55 system-ui;margin:0;background:#f1f4f6;color:#173039}main{max-width:1100px;margin:auto;padding:24px 16px}h1{font-size:32px}h2{font-size:23px}.chapter{background:white;padding:18px;margin:22px 0;border:1px solid #ccd8dd;border-radius:14px}iframe{display:block;width:100%;height:1000px;max-height:none;border:1px solid #d8e3e6;border-radius:10px}@media(max-width:700px){main{padding:12px}iframe{height:850px}}'
+  out=w/"consolidated"/("c-"+slug(topic or "all")+".html")
+  v5.write_text(out,'<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+   '<meta name="viewport" content="width=device-width,initial-scale=1"><title>完整学习整理</title>'
+   '<style>'+css+'</style></head><body><main><h1>完整学习整理 · '+h(topic or "全部")+'</h1>'
+   '<p>以下每个原始 HTML 保留讲解、图示及互动。已生成页面以原样独立框架呈现。</p>'
+   +''.join(sections)+'</main></body></html>')
+  receipt=record(w,'consolidated',out,topic or 'all',[])
+  return {"file":str(out.resolve()),"pages_included":covered,"not_yet_generated":absent,
+          "sections":len(sections),"artifact":receipt,"full_html_preserved":True}
+
+
 def consolidate_existing(ws,topic):
   """Merge ALL existing topic materials from structured sources, with answers visible.
   This uses the source plan, not merely filenames or current session messages.
   Missing declared artifacts fail closed; ungenerated lessons are excluded and reported.
   """
-  w=Path(ws);plan,source=need_plan(w);index=obj(w/'v6-artifact-index.json') or {'items':[]}
+  w=Path(ws);plan,source=need_plan(w)
+  if plan.get('render_contract')==direct_html.CONTRACT:
+    return consolidate_direct(w,topic,plan,source)
+  index=obj(w/'v6-artifact-index.json') or {'items':[]}
   for item in index['items']:
     if topic and topic.lower() not in item.get('topic','').lower():continue
     f=Path(item['file'])

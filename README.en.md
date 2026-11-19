@@ -1,5 +1,17 @@
 > **V6.5 Host-Native Study Skill** · Uses the model already connected to Codex/DSH. Retains learner profiles, onboarding, G1–G6 quality gates and recoverable learning evidence. No separate model API or provider credentials are required; browser QA depends on available host tools.
 
+## Study 6.6: Direct source-grounded teaching HTML
+
+The current Codex/DSH host authors a complete readable HTML lesson directly
+from the selected source and approved LP route. One independent review
+assesses the actual page, then Chromium validates its final browser behavior.
+Ordinary Study groups connected LPs; Study-D focuses on fully explained
+mechanisms, calculations, experiments and boundary cases.
+The seven learner commands, V3.5 learner evidence and course cursors persist.
+New courses use `render_contract: direct-html-v1`; existing courses retain
+legacy rendering compatibility. See [Direct HTML contract](study/references/direct-html.md).
+
+
 <p align="center"><img src="study/assets/icon.svg" alt="Hao Hao Xue Xi icon" width="84" /></p>
 <h1 align="center">好好学习 · Study</h1>
 <p align="center"><strong>Turn fast-changing AI knowledge into a personal, evidence-based learning path.</strong></p>

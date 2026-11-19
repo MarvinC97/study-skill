@@ -201,7 +201,12 @@ def validate_plan(ws):
     for p in pages:
         refs=p.get("lp_ids",[]);mapped_pages.extend(refs)
         if not refs:issues.append(f"{p.get('page_id')}: empty page")
-        if plan.get("mode")=="study-d":
+        if plan.get("render_contract")=="direct-html-v1":
+            # 6.6: Preserve atomic LP coverage, let actual learning goals and
+            # source relationships determine page boundaries. No fixed count.
+            if len(refs)>1 and not str(p.get("learning_objective","")).strip():
+                issues.append(f"{p.get('page_id')}: grouped page needs one clear learning objective")
+        elif plan.get("mode")=="study-d":
             # Learning Points are atomic coverage/evidence IDs; page grouping is a
             # separate teaching decision. Keep bounded cognitive load and require
             # an explicit reason and common learning objective for related LPs.

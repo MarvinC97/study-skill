@@ -8,7 +8,7 @@ Read the established learner profile and current course checkpoint first; then l
 
 Use the learner's purpose to state a concrete chapter goal: e.g. “explain how SQL selects information without writing code” differs from “independently implement a query.” For each required LP, identify the observable criteria needed for that goal. Keep source coverage complete; adapt depth or mark optional/postponed material transparently, never silently remove important mechanisms. If the user changes the goal, revise criteria without erasing earlier evidence.
 
-Inventory the accessible bounded book/video/chapter into stable LPs with sources, prerequisites and objectives. Group related LPs into Units; units are delivery groups, not mastery identities. Plan the route first, then generate the current standard Unit using the latest learner evidence. Do not prewrite every future standard Unit and ignore subsequent learning. `/study-d` remains the exception: generate the complete scoped multi-page module before pagewise delivery; adapt affected not-yet-delivered pages when a real gap appears, retaining versions.
+Inventory the accessible bounded book/video/chapter into stable LPs with sources, prerequisites and objectives. Group related LPs into Units; units are delivery groups, not mastery identities. Plan the route first, then generate the current standard Unit using the latest learner evidence. Do not prewrite every future standard Unit and ignore subsequent learning. `/study-d` also uses a complete source-grounded outline with explicit user approval, then authors, reviews and delivers its NEXT deep page only. Subsequent pages may respond to learner evidence while keeping the approved scope and old versions.
 
 ## Teach, observe, continue
 

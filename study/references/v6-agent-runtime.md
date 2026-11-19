@@ -1,4 +1,7 @@
-# Study V6.5 · Host-Native Runtime Contract
+# Study V6.6 · Host-Native Runtime Contract
+
+> **V6.6 CURRENT runtime:** For new `render_contract: direct-html-v1` plans, the host writes `authored-pages/<page-id>.html` directly, independent Reviewer checks the actual full HTML and source (receipt `reviews/html/<page-id>.json`), then `v6_agent.py direct-page-check` performs browser QA. `study-n` publishes one reviewed standard Unit; `stage-next-page` stages the next approved deep page. Confirm delivery only after the learner can access the exact HTML. Lesson Specification/Storyboard/old G3-G4 JSON are historical compatibility paths. See `direct-html.md`.
+
 
 This is the execution playbook for a Study Skill installed in Codex, DSH,
 or another agent host. The host's **already connected session model** performs
@@ -114,7 +117,7 @@ py -3.12 study/runtime/v6_agent.py freeze --workspace "<deep workspace>"
 The approval command must only be invoked as the consequence of real user
 approval for the exact plan hash.
 
-## V6.5 composable teaching components and G5 Render Review
+## Legacy V6.5 composable teaching components and G5 Render Review
 
 New plans set `render_contract=storyboard-v1`. Once design-check passes,
 use `storyboard-check` for the independent Storyboard review before
