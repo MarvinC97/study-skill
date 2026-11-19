@@ -39,8 +39,8 @@ def sample_page(title):
 </details></main></body></html>"""
 
 
-def approved_review(plan, source, page_id, path, fact_ids):
-    return {"contract":direct.CONTRACT,
+def approved_review(plan, source, page_id, path, fact_ids, manuscript=None):
+    receipt = {"contract":direct.CONTRACT,
             "page_id":page_id,
             "source_sha256":source["source_sha256"],
             "plan_sha256":direct.hash_json(plan),
@@ -56,6 +56,10 @@ def approved_review(plan, source, page_id, path, fact_ids):
                          if dimension in {"explanation_depth","teaching_sequence","visual_pedagogy"}
                          else "")}
                       for dimension in sorted(direct.REVIEW_DIMENSIONS)]}
+    if plan.get("authoring_mode")==direct.TWO_PASS:
+        if manuscript is None: raise ValueError("two-pass fixture must identify manuscript")
+        receipt["lesson_sha256"]=direct.sha(manuscript.read_bytes())
+    return receipt
 
 
 class DirectHtmlTests(unittest.TestCase):
@@ -64,6 +68,7 @@ class DirectHtmlTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.w,self.source,self.plan = build_workspace(Path(self.tmp.name))
         self.plan["render_contract"] = direct.CONTRACT
+        self.plan["authoring_mode"] = direct.TWO_PASS
         host.atomic_json(self.w/"plan.json",self.plan)
         reviewfile=self.w/"review-plan-input.json"
         host.atomic_json(reviewfile,new_batched_review(self.source,self.plan))
@@ -74,13 +79,20 @@ class DirectHtmlTests(unittest.TestCase):
         self.page_path,self.review_path,_=direct.locations(self.w,self.page["page_id"])
         self.page_path.parent.mkdir(parents=True,exist_ok=True)
         self.page_path.write_text(sample_page("训练机制入门"),encoding="utf-8")
+        self.manuscript = direct.lesson_path(self.w,self.page["page_id"])
+        self.manuscript.parent.mkdir(parents=True,exist_ok=True)
+        self.manuscript.write_text(
+            "# 训练机制入门\\n\\n先看一个具体输入与条件，再依次解释转换、结果以及边界。\\n"
+            "完整的示例讲稿先于 HTML，视觉作者负责把中间推理变得易于观察。\\n",
+            encoding="utf-8")
         lookup={p["lp_id"]:p for p in self.plan["points"]}
         self.facts={fact["id"] for pid in self.page["lp_ids"]
                     for fact in lookup[pid]["required_facts"]}
 
     def approve_page(self):
         direct.save(self.review_path,approved_review(
-          self.plan,self.source,self.page["page_id"],self.page_path,self.facts))
+          self.plan,self.source,self.page["page_id"],self.page_path,self.facts,
+          manuscript=self.manuscript))
 
     def test_missing_review_is_not_published(self):
         with self.assertRaises(direct.DirectPageError) as ctx:
@@ -100,6 +112,30 @@ class DirectHtmlTests(unittest.TestCase):
         with self.assertRaises(direct.DirectPageError) as ctx:
             direct.validate_review(self.w,self.plan,self.source,self.page["page_id"])
         self.assertIn("html_sha256",str(ctx.exception))
+
+    def test_two_pass_manuscript_is_required_and_hash_bound(self):
+        self.approve_page()
+        self.manuscript.unlink()
+        with self.assertRaises(direct.DirectPageError) as ctx:
+            direct.validate_review(self.w,self.plan,self.source,self.page["page_id"])
+        self.assertIn("manuscript missing",str(ctx.exception))
+        self.manuscript.write_text("# Updated manuscript\\nExact new content",encoding="utf-8")
+        with self.assertRaises(direct.DirectPageError) as ctx:
+            direct.validate_review(self.w,self.plan,self.source,self.page["page_id"])
+        self.assertIn("lesson_sha256",str(ctx.exception))
+        self.approve_page()
+        page,receipt=direct.validate_review(self.w,self.plan,self.source,self.page["page_id"])
+        self.assertTrue(page.is_file())
+        self.assertEqual(receipt["lesson_sha256"],direct.sha(self.manuscript.read_bytes()))
+
+    def test_historical_direct_html_is_still_accepted(self):
+        self.plan.pop("authoring_mode",None)
+        self.manuscript.unlink()
+        self.approve_page()
+        page,receipt=direct.validate_review(
+            self.w,self.plan,self.source,self.page["page_id"])
+        self.assertTrue(page.is_file())
+        self.assertNotIn("lesson_sha256",receipt)
 
     def test_generic_or_hidden_review_evidence_is_rejected(self):
         self.approve_page()
@@ -159,9 +195,13 @@ class DirectHtmlTests(unittest.TestCase):
         p2,r2,_=direct.locations(self.w,next_page["page_id"])
         p2.parent.mkdir(parents=True,exist_ok=True)
         p2.write_text(sample_page("下一个知识点"),encoding="utf-8")
+        manuscript2=direct.lesson_path(self.w,next_page["page_id"])
+        manuscript2.parent.mkdir(parents=True,exist_ok=True)
+        manuscript2.write_text("# 下一页讲稿\\n\\n来源、机制、例子与边界已解释。",encoding="utf-8")
         lookup={p["lp_id"]:p for p in self.plan["points"]}
         facts={f["id"] for pid in next_page["lp_ids"] for f in lookup[pid]["required_facts"]}
-        direct.save(r2,approved_review(self.plan,self.source,next_page["page_id"],p2,facts))
+        direct.save(r2,approved_review(self.plan,self.source,next_page["page_id"],p2,facts,
+                                       manuscript=manuscript2))
         second=agent.stage_next_page(self.w)
         self.assertEqual(second["page_id"],next_page["page_id"])
         self.assertEqual(second["pages_staged"],2)
