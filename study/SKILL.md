@@ -97,7 +97,10 @@ the key step is incomplete.
 An isolated host Reviewer reads original evidence and the **full authored
 HTML**. The reviewer reconstructs the explanation from the visible page,
 verifies source fidelity and intermediate reasoning, checks reading sequence,
-validates visual meaning and self-check fairness. Record one source/plan/HTML-
+validates visual meaning and self-check fairness. Use an actual, learner-approved
+high-quality sample as a presentation benchmark when one is accessible; it
+never supplies facts for a different source. Cite exact reader-visible HTML
+evidence for explanation, sequence and visual judgments. Record one source/plan/HTML-
 hash-bound receipt `reviews/html/<page-id>.json` covering five dimensions
 from `references/direct-html.md`. A missing genuine reviewer is
 `REVIEW_UNVERIFIED`. Never manufacture an approval.
