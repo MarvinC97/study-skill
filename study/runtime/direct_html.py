@@ -68,6 +68,7 @@ class PageReader(HTMLParser):
         self.hidden_stack = []
         self.headings = []
         self.visible_text = []
+        self.reader_visible_text = []
         self.head_text = []
         self.checkpoints = []
         self.script_src = []
@@ -134,6 +135,7 @@ class PageReader(HTMLParser):
         if self.current_heading: self.headings.append(value)
         self.visible_text.append(value)
         if self.main_open and not self.in_details:
+            self.reader_visible_text.append(value)
             self.main_visible_text += len(value)
         if self.first_critical is None and self.main_open:
             self.first_critical = "detail" if self.in_details else "visible"
@@ -215,10 +217,26 @@ def validate_review(workspace, plan, source, page_id):
         x.get("dimension") for x in checks if isinstance(x, dict)
     } != REVIEW_DIMENSIONS:
         problems.append("final review must assess five educational criteria")
+    # Tie the single final semantic review to a passage actually visible
+    # to the learner. Exact-match evidence is a provenance check, not a
+    # surrogate score for teaching depth; the independent reviewer still
+    # judges whether this passage really explains the mechanism.
+    parsed = PageReader()
+    parsed.feed(authored.read_text(encoding="utf-8"))
+    visible_text = re.sub(r"\\s+", "", " ".join(parsed.reader_visible_text))
+    must_anchor = {"explanation_depth", "teaching_sequence", "visual_pedagogy"}
     for check in checks:
         if (not isinstance(check, dict) or check.get("passed") is not True
                 or not str(check.get("reason", "")).strip()):
             problems.append("review verdict missing page-specific explanation")
+            continue
+        dimension = check.get("dimension")
+        if dimension in must_anchor:
+            excerpt = check.get("reader_evidence", "")
+            if (not isinstance(excerpt, str) or not excerpt.strip()
+                or re.sub(r"\\s+", "", excerpt.strip()) not in visible_text):
+                problems.append("review "+str(dimension)+
+                                " must cite an exact reader-visible HTML passage")
     if problems: raise DirectPageError("G4 rejected: " + "; ".join(problems))
     return authored, review
 
