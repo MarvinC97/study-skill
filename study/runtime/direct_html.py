@@ -223,7 +223,7 @@ def validate_review(workspace, plan, source, page_id):
     # judges whether this passage really explains the mechanism.
     parsed = PageReader()
     parsed.feed(authored.read_text(encoding="utf-8"))
-    visible_text = re.sub(r"\\s+", "", " ".join(parsed.reader_visible_text))
+    visible_text = re.sub(r"\s+", "", " ".join(parsed.reader_visible_text))
     must_anchor = {"explanation_depth", "teaching_sequence", "visual_pedagogy"}
     for check in checks:
         if (not isinstance(check, dict) or check.get("passed") is not True
@@ -234,7 +234,7 @@ def validate_review(workspace, plan, source, page_id):
         if dimension in must_anchor:
             excerpt = check.get("reader_evidence", "")
             if (not isinstance(excerpt, str) or not excerpt.strip()
-                or re.sub(r"\\s+", "", excerpt.strip()) not in visible_text):
+                or re.sub(r"\s+", "", excerpt.strip()) not in visible_text):
                 problems.append("review "+str(dimension)+
                                 " must cite an exact reader-visible HTML passage")
     if problems: raise DirectPageError("G4 rejected: " + "; ".join(problems))
